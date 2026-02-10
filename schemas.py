@@ -21,7 +21,6 @@ class UserResponse(BaseModel):
         from_attributes = True  # Updated for Pydantic v2
 
 class CompostPileCreate(BaseModel):
-    username: str
     name: str = Field(..., max_length=100)
     volume_at_creation: Optional[float]
     location: Optional[str]
