@@ -152,22 +152,17 @@ def list_my_compost_piles(
     return db.query(CompostPile).filter(CompostPile.username == current_user.username).all()
 
 @app.post("/compost-piles/create", response_model=CompostPileResponse, status_code=201)
-def create_compost_pile(pile: CompostPileCreate, db: Session = Depends(get_db)):
-    # Optional: verify user exists
-    from models import User
-    user = db.query(User).filter(User.username == pile.username).first()
-    if not user:
-        raise HTTPException(
-            status_code=404,
-            detail=f"User '{pile.username}' not found"
-        )
-
-    # Create compost pile
+def create_compost_pile(
+    pile: CompostPileCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    # Create compost pile for authenticated user only
     db_pile = CompostPile(
-        username=pile.username,
+        username=current_user.username,
         name=pile.name,
         volume_at_creation=pile.volume_at_creation,
-        location=pile.location  # Save the location
+        location=pile.location,
     )
 
     db.add(db_pile)
@@ -182,4 +177,3 @@ def create_compost_pile(pile: CompostPileCreate, db: Session = Depends(get_db)):
 
     db.refresh(db_pile)
     return db_pile
-
