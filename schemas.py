@@ -40,7 +40,7 @@ class CompostPileResponse(BaseModel):
 
 
 class HealthRecordCreate(BaseModel):
-    pile_ID: int
+    pile_id: int
     temperature: Optional[float]
     moisture: Optional[float]
     nitrogen_content: Optional[float]
@@ -48,8 +48,8 @@ class HealthRecordCreate(BaseModel):
 
 
 class HealthRecordResponse(BaseModel):
-    record_ID: int
-    pile_ID: int
+    record_id: int
+    pile_id: int
     temperature: Optional[float]
     moisture: Optional[float]
     nitrogen_content: Optional[float]
@@ -63,8 +63,8 @@ class HealthRecordResponse(BaseModel):
 
 
 class NotificationResponse(BaseModel):
-    notification_ID: int
-    pile_ID: int
+    notification_id: int
+    pile_id: int
     title: str
     description: Optional[str]
     type: Optional[str]
@@ -74,3 +74,12 @@ class NotificationResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+
+class TokenData(BaseModel):
+    username: Optional[str] = None
