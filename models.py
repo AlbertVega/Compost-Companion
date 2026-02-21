@@ -27,7 +27,7 @@ class CompostPile(Base):
 class HealthRecord(Base):
     __tablename__ = "healthrecord"
     record_id = Column(Integer, primary_key=True, autoincrement=True)
-    pile_id = Column(Integer, ForeignKey("compostpile.pile_ID", ondelete="CASCADE"), nullable=False)
+    pile_id = Column(Integer, ForeignKey("compostpile.pile_id", ondelete="CASCADE"), nullable=False)
     temperature = Column(Numeric(4, 1))
     moisture = Column(Numeric(5, 2))
     nitrogen_content = Column(Numeric(5, 2))
@@ -59,7 +59,7 @@ class Ingredient(Base):
 class Notification(Base):
     __tablename__ = "notification"
     notification_id = Column(Integer, primary_key=True, autoincrement=True)
-    pile_id = Column(Integer, ForeignKey("compostpile.pile_ID", ondelete="CASCADE"), nullable=False)
+    pile_id = Column(Integer, ForeignKey("compostpile.pile_id", ondelete="CASCADE"), nullable=False)
     title = Column(String(120), nullable=False)
     description = Column(Text)
     type = Column(String(40))
