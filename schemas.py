@@ -21,7 +21,6 @@ class UserResponse(BaseModel):
         from_attributes = True  # Updated for Pydantic v2
 
 class CompostPileCreate(BaseModel):
-    username: str
     name: str = Field(..., max_length=100)
     volume_at_creation: Optional[float]
     location: Optional[str]
@@ -40,16 +39,26 @@ class CompostPileResponse(BaseModel):
 
 
 class HealthRecordCreate(BaseModel):
-    pile_ID: int
+    pile_id: int
     temperature: Optional[float]
     moisture: Optional[float]
     nitrogen_content: Optional[float]
     carbon_content: Optional[float]
 
 
+
+
+class HealthRecordIngest(BaseModel):
+    temperature: Optional[float]
+    moisture: Optional[float]
+    nitrogen_content: Optional[float]
+    carbon_content: Optional[float]
+    timestamp: Optional[datetime] = None
+
+
 class HealthRecordResponse(BaseModel):
-    record_ID: int
-    pile_ID: int
+    record_id: int
+    pile_id: int
     temperature: Optional[float]
     moisture: Optional[float]
     nitrogen_content: Optional[float]
@@ -63,8 +72,8 @@ class HealthRecordResponse(BaseModel):
 
 
 class NotificationResponse(BaseModel):
-    notification_ID: int
-    pile_ID: int
+    notification_id: int
+    pile_id: int
     title: str
     description: Optional[str]
     type: Optional[str]
@@ -74,3 +83,12 @@ class NotificationResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+
+class TokenData(BaseModel):
+    username: Optional[str] = None

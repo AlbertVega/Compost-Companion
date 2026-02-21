@@ -7,24 +7,27 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-url_object = URL.create(
-    "postgresql",
-    username="compostproject",
-    password="AlbertAndMichael",  # Consider moving this to .env later
-    host="database-compost.c0g1hasawu7w.ca-west-1.rds.amazonaws.com",
-    port=5432,
-    database="compost_db",
-)
+
+def _build_database_url() -> URL:
+    return URL.create(
+        "postgresql",
+        username=os.getenv("DB_USERNAME"),
+        password=os.getenv("DB_PASSWORD"),
+        host=os.getenv("DB_HOST"),
+        port=int(os.getenv("DB_PORT", "5432")),
+        database=os.getenv("DB_NAME"),
+    )
+
 
 connect_args = {
-    "sslmode": "verify-full",
-    "sslrootcert": "global-bundle.pem"
+    "sslmode": os.getenv("DB_SSLMODE", "verify-full"),
+    "sslrootcert": os.getenv("DB_SSLROOTCERT", "global-bundle.pem"),
 }
 
-
-engine = create_engine(url_object, connect_args=connect_args)
+engine = create_engine(_build_database_url(), connect_args=connect_args)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
+
 
 def get_db():
     db = SessionLocal()
