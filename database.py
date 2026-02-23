@@ -1,27 +1,45 @@
 import os
+from pathlib import Path
+
+from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.engine import URL
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-from dotenv import load_dotenv
 
-load_dotenv()
+BASE_DIR = Path(__file__).resolve().parent
+load_dotenv(dotenv_path=BASE_DIR / ".env")
 
 
-def _build_database_url() -> URL:
+def _required_env(name: str) -> str:
+    value = os.getenv(name)
+    if not value:
+        raise RuntimeError(
+            f"Missing required database setting: {name}. "
+            "Make sure your .env file is present and loaded."
+        )
+    return value
+
+
+def _build_database_url() -> str | URL:
+    # Support DB_URL for convenience in some deployment setups.
+    explicit_url = os.getenv("DB_URL")
+    if explicit_url:
+        return explicit_url
+
     return URL.create(
         "postgresql",
-        username=os.getenv("DB_USERNAME"),
-        password=os.getenv("DB_PASSWORD"),
-        host=os.getenv("DB_HOST"),
+        username=_required_env("DB_USERNAME"),
+        password=_required_env("DB_PASSWORD"),
+        host=_required_env("DB_HOST"),
         port=int(os.getenv("DB_PORT", "5432")),
-        database=os.getenv("DB_NAME"),
+        database=_required_env("DB_NAME"),
     )
 
 
 connect_args = {
     "sslmode": os.getenv("DB_SSLMODE", "verify-full"),
-    "sslrootcert": os.getenv("DB_SSLROOTCERT", "global-bundle.pem"),
+    "sslrootcert": os.getenv("DB_SSLROOTCERT", str(BASE_DIR / "global-bundle.pem")),
 }
 
 engine = create_engine(_build_database_url(), connect_args=connect_args)
