@@ -1,9 +1,71 @@
 import 'package:flutter/material.dart';
 import 'package:compost_companion/core/theme/app_colors.dart';
 import 'package:compost_companion/features/auth/presentation/screens/login_screen.dart';
+import 'package:compost_companion/data/services/auth_service.dart';
+import 'package:compost_companion/data/models/user_create.dart';
 
-class SignupScreen extends StatelessWidget {
+class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
+
+  @override
+  State<SignupScreen> createState() => _SignupScreenState();
+}
+
+class _SignupScreenState extends State<SignupScreen> {
+  final _usernameCtrl = TextEditingController();
+  final _emailCtrl = TextEditingController();
+  final _passwordCtrl = TextEditingController();
+  final _countryCtrl = TextEditingController();
+  final _locationCtrl = TextEditingController();
+  final _authService = const AuthService();
+
+  bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _usernameCtrl.dispose();
+    _emailCtrl.dispose();
+    _passwordCtrl.dispose();
+    _countryCtrl.dispose();
+    _locationCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final username = _usernameCtrl.text.trim();
+    final email = _emailCtrl.text.trim();
+    final password = _passwordCtrl.text;
+    final country = _countryCtrl.text.trim();
+    final location = _locationCtrl.text.trim();
+
+    if (username.isEmpty || email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please fill required fields')));
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    final user = UserCreate(
+      username: username,
+      email: email,
+      password: password,
+      country: country,
+      location: location,
+    );
+
+    try {
+      await _authService.registerUser(user);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Account created successfully')));
+      Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const LoginScreen()));
+    } catch (e) {
+      if (!mounted) return;
+      final msg = e.toString().replaceFirst('Exception: ', '');
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -108,6 +170,7 @@ class SignupScreen extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         TextField(
+          controller: _usernameCtrl,
           decoration: InputDecoration(
             hintText: 'Choose your username',
             prefixIcon: const Icon(
@@ -134,6 +197,8 @@ class SignupScreen extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         TextField(
+          controller: _emailCtrl,
+          keyboardType: TextInputType.emailAddress,
           decoration: InputDecoration(
             hintText: 'Enter your email',
             prefixIcon: const Icon(
@@ -160,6 +225,7 @@ class SignupScreen extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         TextField(
+          controller: _passwordCtrl,
           obscureText: true,
           decoration: InputDecoration(
             hintText: 'Create a password',
@@ -187,7 +253,7 @@ class SignupScreen extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         TextField(
-          readOnly: true,
+          controller: _countryCtrl,
           decoration: InputDecoration(
             hintText: 'Select your country',
             prefixIcon: const Icon(
@@ -214,6 +280,7 @@ class SignupScreen extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         TextField(
+          controller: _locationCtrl,
           decoration: InputDecoration(
             hintText: 'City / Region',
             prefixIcon: const Icon(
@@ -230,11 +297,17 @@ class SignupScreen extends StatelessWidget {
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton(
-        onPressed: () {},
-        child: const Text(
-          'Create Account',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-        ),
+        onPressed: _isLoading ? null : _submit,
+        child: _isLoading
+            ? const SizedBox(
+                height: 20,
+                width: 20,
+                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+              )
+            : const Text(
+                'Create Account',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+              ),
       ),
     );
   }

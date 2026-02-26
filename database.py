@@ -37,12 +37,19 @@ def _build_database_url() -> str | URL:
     )
 
 
-connect_args = {
-    "sslmode": os.getenv("DB_SSLMODE", "verify-full"),
-    "sslrootcert": os.getenv("DB_SSLROOTCERT", str(BASE_DIR / "global-bundle.pem")),
-}
+_db_url = _build_database_url()
 
-engine = create_engine(_build_database_url(), connect_args=connect_args)
+# Only pass SSL/connect args for non-sqlite databases (e.g. Postgres). SQLite
+# doesn't accept ssl/connect args in its DBAPI, so skip them for local testing.
+if isinstance(_db_url, str) and _db_url.startswith("sqlite"):
+    connect_args = {}
+else:
+    connect_args = {
+        "sslmode": os.getenv("DB_SSLMODE", "verify-full"),
+        "sslrootcert": os.getenv("DB_SSLROOTCERT", str(BASE_DIR / "global-bundle.pem")),
+    }
+
+engine = create_engine(_db_url, connect_args=connect_args)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
