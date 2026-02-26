@@ -1,9 +1,52 @@
 import 'package:flutter/material.dart';
 import 'package:compost_companion/core/theme/app_colors.dart';
 import 'package:compost_companion/features/auth/presentation/screens/signup_screen.dart';
+import 'package:compost_companion/data/services/auth_service.dart';
 
-class LoginScreen extends StatelessWidget {
+class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
+
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  final _usernameCtrl = TextEditingController();
+  final _passwordCtrl = TextEditingController();
+  final _authService = const AuthService();
+  bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _usernameCtrl.dispose();
+    _passwordCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final username = _usernameCtrl.text.trim();
+    final password = _passwordCtrl.text;
+
+    if (username.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter username and password')));
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final token = await _authService.login(username: username, password: password);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Login successful')));
+      
+    } catch (e) {
+      if (!mounted) return;
+      final msg = e.toString().replaceFirst('Exception: ', '');
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -116,8 +159,9 @@ class LoginScreen extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         TextField(
+          controller: _usernameCtrl,
           decoration: InputDecoration(
-            hintText: 'Enter your email',
+            hintText: 'Enter your email or username',
             prefixIcon: const Icon(
               Icons.person_outline,
               color: AppColors.iconColor,
@@ -142,6 +186,7 @@ class LoginScreen extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         TextField(
+          controller: _passwordCtrl,
           obscureText: true,
           decoration: InputDecoration(
             hintText: 'Enter your password',
@@ -159,11 +204,17 @@ class LoginScreen extends StatelessWidget {
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton(
-        onPressed: () {},
-        child: const Text(
-          'Login',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-        ),
+        onPressed: _isLoading ? null : _submit,
+        child: _isLoading
+            ? const SizedBox(
+                height: 20,
+                width: 20,
+                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+              )
+            : const Text(
+                'Login',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+              ),
       ),
     );
   }
