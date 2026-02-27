@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:compost_companion/core/theme/app_colors.dart';
-import 'package:compost_companion/features/auth/presentation/screens/login_screen.dart';
+import 'package:compost_companion/features/auth/screens/login_screen.dart';
 
 class SignupScreen extends StatelessWidget {
   const SignupScreen({super.key});

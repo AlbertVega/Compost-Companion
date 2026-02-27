@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:compost_companion/core/theme/app_colors.dart';
-import 'package:compost_companion/features/auth/presentation/screens/signup_screen.dart';
+import 'package:compost_companion/features/auth/screens/signup_screen.dart';
+import 'package:compost_companion/features/calendar/screens/calendar_screen.dart';
+import 'package:compost_companion/features/dashboard/models.dart';
+import 'package:compost_companion/main.dart';
 
 class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
@@ -52,7 +55,13 @@ class LoginScreen extends StatelessWidget {
                 _buildTextButton(
                   context,
                   'Continue as Guest',
-                  () {},
+                  () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => const CalendarScreen(),
+                      ),
+                    );
+                  },
                 ),
                 const SizedBox(height: 12),
                 // Create Account Button
@@ -159,7 +168,55 @@ class LoginScreen extends StatelessWidget {
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton(
-        onPressed: () {},
+        onPressed: () {
+          // Create demo piles for logged-in session
+          final List<PileData> demoPiles = [
+            PileData(
+              title: 'Pile A',
+              status: 'Active',
+              statusColor: const Color(0xFF2F6F4E),
+              temp: '52 C',
+              moisture: '58%',
+              chartAsset: 'assets/14-741.svg',
+              tempIconAsset: 'assets/I18-94;14-733.svg',
+              moistureIconAsset: 'assets/14-733.svg',
+              buttonColor: const Color(0xFF2F6F4E),
+            ),
+            PileData(
+              title: 'Pile B',
+              status: 'Curing',
+              statusColor: const Color(0xFFD68D18),
+              temp: '38 C',
+              moisture: '45%',
+              chartAsset: 'assets/I14-749;14-741.svg',
+              tempIconAsset: 'assets/I18-121;14-733.svg',
+              moistureIconAsset: 'assets/I18-112;14-733.svg',
+              buttonColor: const Color(0xFFD68D18),
+            ),
+            PileData(
+              title: 'Pile C',
+              status: 'Needs Attention',
+              statusColor: const Color(0xFFDB181B),
+              temp: '47 C',
+              moisture: '25%',
+              chartAsset: 'assets/I14-746;14-741.svg',
+              tempIconAsset: 'assets/I18-103;14-733.svg',
+              moistureIconAsset: 'assets/I18-130;14-733.svg',
+              buttonColor: const Color(0xFFDB181B),
+            ),
+          ];
+          
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (context) => MainNavigation(
+                piles: demoPiles,
+                onSave: (String name) {
+                  // Placeholder for add pile functionality
+                },
+              ),
+            ),
+          );
+        },
         child: const Text(
           'Login',
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),

@@ -50,6 +50,12 @@
       "languageVersion": "3.8"
     },
     {
+      "name": "flutter_svg",
+      "rootUri": "file:///C:/Users/jcur1/AppData/Local/Pub/Cache/hosted/pub.dev/flutter_svg-1.1.6",
+      "packageUri": "lib/",
+      "languageVersion": "2.17"
+    },
+    {
       "name": "flutter_test",
       "rootUri": "file:///C:/Users/jcur1/flutter/packages/flutter_test",
       "packageUri": "lib/",
@@ -104,6 +110,24 @@
       "languageVersion": "3.4"
     },
     {
+      "name": "path_drawing",
+      "rootUri": "file:///C:/Users/jcur1/AppData/Local/Pub/Cache/hosted/pub.dev/path_drawing-1.0.1",
+      "packageUri": "lib/",
+      "languageVersion": "2.12"
+    },
+    {
+      "name": "path_parsing",
+      "rootUri": "file:///C:/Users/jcur1/AppData/Local/Pub/Cache/hosted/pub.dev/path_parsing-1.1.0",
+      "packageUri": "lib/",
+      "languageVersion": "3.3"
+    },
+    {
+      "name": "petitparser",
+      "rootUri": "file:///C:/Users/jcur1/AppData/Local/Pub/Cache/hosted/pub.dev/petitparser-7.0.2",
+      "packageUri": "lib/",
+      "languageVersion": "3.8"
+    },
+    {
       "name": "sky_engine",
       "rootUri": "file:///C:/Users/jcur1/flutter/bin/cache/pkg/sky_engine",
       "packageUri": "lib/",
@@ -156,6 +180,12 @@
       "rootUri": "file:///C:/Users/jcur1/AppData/Local/Pub/Cache/hosted/pub.dev/vm_service-15.0.2",
       "packageUri": "lib/",
       "languageVersion": "3.5"
+    },
+    {
+      "name": "xml",
+      "rootUri": "file:///C:/Users/jcur1/AppData/Local/Pub/Cache/hosted/pub.dev/xml-6.6.1",
+      "packageUri": "lib/",
+      "languageVersion": "3.8"
     },
     {
       "name": "compost_companion",

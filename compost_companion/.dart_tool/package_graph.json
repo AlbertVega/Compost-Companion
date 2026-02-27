@@ -7,7 +7,8 @@
       "name": "compost_companion",
       "version": "0.1.0",
       "dependencies": [
-        "flutter"
+        "flutter",
+        "flutter_svg"
       ],
       "devDependencies": [
         "flutter_lints",
@@ -37,6 +38,17 @@
         "stream_channel",
         "test_api",
         "vector_math"
+      ]
+    },
+    {
+      "name": "flutter_svg",
+      "version": "1.1.6",
+      "dependencies": [
+        "flutter",
+        "meta",
+        "path_drawing",
+        "vector_math",
+        "xml"
       ]
     },
     {
@@ -141,6 +153,25 @@
       ]
     },
     {
+      "name": "xml",
+      "version": "6.6.1",
+      "dependencies": [
+        "collection",
+        "meta",
+        "petitparser"
+      ]
+    },
+    {
+      "name": "path_drawing",
+      "version": "1.0.1",
+      "dependencies": [
+        "flutter",
+        "meta",
+        "path_parsing",
+        "vector_math"
+      ]
+    },
+    {
       "name": "sky_engine",
       "version": "0.0.0",
       "dependencies": []
@@ -212,6 +243,22 @@
       "dependencies": [
         "source_span",
         "string_scanner"
+      ]
+    },
+    {
+      "name": "petitparser",
+      "version": "7.0.2",
+      "dependencies": [
+        "collection",
+        "meta"
+      ]
+    },
+    {
+      "name": "path_parsing",
+      "version": "1.1.0",
+      "dependencies": [
+        "meta",
+        "vector_math"
       ]
     },
     {
