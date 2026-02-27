@@ -6,8 +6,8 @@ class UserCreate(BaseModel):
     username: str = Field(..., max_length=50)
     email: EmailStr
     password: str = Field(..., min_length=8, max_length=72)  # max 72 for bcrypt
-    country: Optional[str]
-    location: Optional[str]
+    country: Optional[str] = None
+    location: Optional[str] = None
 
 
 class UserResponse(BaseModel):
@@ -22,8 +22,8 @@ class UserResponse(BaseModel):
 
 class CompostPileCreate(BaseModel):
     name: str = Field(..., max_length=100)
-    volume_at_creation: Optional[float]
-    location: Optional[str]
+    volume_at_creation: Optional[float] = None
+    location: Optional[str] = None
 
 
 class CompostPileResponse(BaseModel):
@@ -40,19 +40,18 @@ class CompostPileResponse(BaseModel):
 
 class HealthRecordCreate(BaseModel):
     pile_id: int
-    temperature: Optional[float]
-    moisture: Optional[float]
-    nitrogen_content: Optional[float]
-    carbon_content: Optional[float]
-
-
+    temperature: Optional[float] = None
+    moisture: Optional[float] = None
+    nitrogen_content: Optional[float] = None
+    carbon_content: Optional[float] = None
 
 
 class HealthRecordIngest(BaseModel):
-    temperature: Optional[float]
-    moisture: Optional[float]
-    nitrogen_content: Optional[float]
-    carbon_content: Optional[float]
+    """Schema for creating health records via API (pile_id comes from URL)"""
+    temperature: Optional[float] = None
+    moisture: Optional[float] = None
+    nitrogen_content: Optional[float] = None
+    carbon_content: Optional[float] = None
     timestamp: Optional[datetime] = None
 
 
@@ -66,6 +65,23 @@ class HealthRecordResponse(BaseModel):
     health_score: Optional[int]
     status: Optional[str]
     timestamp: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class IngredientCreate(BaseModel):
+    name: str = Field(..., max_length=80)
+    moisture_content: Optional[float] = None
+    nitrogen_content: Optional[float] = None
+    carbon_content: Optional[float] = None
+
+
+class IngredientResponse(BaseModel):
+    name: str
+    moisture_content: Optional[float]
+    nitrogen_content: Optional[float]
+    carbon_content: Optional[float]
 
     class Config:
         from_attributes = True
