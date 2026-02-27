@@ -10,153 +10,217 @@ class DashboardScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Calculate total height based on number of piles
-    final double totalHeight = 323.0 + (piles.length * 166.0) + 100.0;
-
     return Scaffold(
       backgroundColor: const Color(0xFFF7F9F6).withOpacity(0.9),
       body: SafeArea(
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
-          child: SizedBox(
-            height: totalHeight > 1000 ? totalHeight : 1000,
-            child: Stack(
-              children: [
-                // Header
-                Positioned(
-                  left: 19,
-                  top: 33,
-                  child: GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const NotificationScreen()),
-                      );
-                    },
-                    child: SvgPicture.asset('assets/I64-321;7758-11128.svg', width: 20, height: 20),
-                  ),
-                ),
-                Positioned(
-                  left: 71,
-                  top: 24,
-                  child: Image.asset('assets/102-213.webp', width: 70, height: 70),
-                ),
-                const Positioned(
-                  left: 162,
-                  top: 47,
-                  child: Text(
-                    'My Piles',
-                    style: TextStyle(color: Colors.black, fontSize: 20, fontWeight: FontWeight.w500),
-                  ),
-                ),
+          child: Column(
+            children: [
+              // Header with notification, logo, and title
+              _buildHeader(context),
+              const SizedBox(height: 24),
 
-                // Next Action Card
-                Positioned(
-                  left: 105,
-                  top: 146,
-                  child: Container(
-                    width: 184,
-                    height: 143,
-                    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
-                    child: Stack(
-                      children: [
-                        const Positioned(
-                          left: 24,
-                          top: 13,
-                          child: Text('Next Action', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w500)),
-                        ),
-                        Positioned(
-                          left: 12,
-                          top: 47,
-                          child: SvgPicture.asset('assets/88-213.svg', width: 40, height: 40),
-                        ),
-                        const Positioned(
-                          left: 57,
-                          top: 53,
-                          child: Text('Turn Pile', style: TextStyle(fontSize: 13)),
-                        ),
-                        const Positioned(
-                          left: 55,
-                          top: 71,
-                          child: Opacity(
-                            opacity: 0.5,
-                            child: Text('Tomorrow 9:00 AM', style: TextStyle(fontSize: 13)),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+              // Next Action Card
+              _buildNextActionCard(),
+              const SizedBox(height: 40),
 
-                // Pile Cards
-                for (int i = 0; i < piles.length; i++)
-                  _buildPileCard(
-                    context,
-                    top: 323.0 + (i * 166.0),
-                    pile: piles[i],
-                  ),
-              ],
-            ),
+              // Pile Cards List
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Column(
+                  children: [
+                    for (int i = 0; i < piles.length; i++) ...[
+                      _buildPileCard(context, pile: piles[i]),
+                      if (i < piles.length - 1) const SizedBox(height: 20),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 30),
+            ],
           ),
         ),
       ),
     );
   }
 
-  Widget _buildPileCard(
-    BuildContext context, {
-    required double top,
-    required PileData pile,
-  }) {
-    return Positioned(
-      left: 25,
-      top: top,
-      child: GestureDetector(
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const PileDetailsScreen()),
-          );
-        },
-        child: Container(
-          width: 358,
-          height: 125,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: const [BoxShadow(color: Color(0x3F000000), blurRadius: 4, offset: Offset(0, 4))],
+  Widget _buildHeader(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const NotificationScreen()),
+              );
+            },
+            child: SvgPicture.asset('assets/I64-321;7758-11128.svg', width: 24, height: 24),
           ),
-          child: Stack(
-            children: [
-              Positioned(left: 13, top: 6, child: Text(pile.title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500))),
-              Positioned(
-                left: 14,
-                top: 31,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-                  decoration: BoxDecoration(color: pile.statusColor, borderRadius: BorderRadius.circular(16)),
-                  child: Text(pile.status, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
-                ),
-              ),
-              Positioned(right: 10, top: -10, child: SvgPicture.asset(pile.chartAsset, width: 70, height: 70)),
-              Positioned(left: 6, top: 63, child: Container(width: 349.5, height: 1, color: const Color(0xFF757575))),
-              Positioned(left: 7, top: 70, child: SvgPicture.asset(pile.tempIconAsset, width: 24, height: 24)),
-              Positioned(left: 33, top: 74, child: Text('Temp: ${pile.temp}', style: const TextStyle(fontSize: 13))),
-              Positioned(left: 112, top: 70, child: SvgPicture.asset(pile.moistureIconAsset, width: 24, height: 24)),
-              Positioned(left: 139, top: 74, child: Text('Moisture: ${pile.moisture}', style: const TextStyle(fontSize: 13))),
-              Positioned(
-                right: 10,
-                bottom: 10,
-                child: Container(
-                  width: 100,
-                  height: 21,
-                  decoration: BoxDecoration(color: pile.buttonColor, borderRadius: BorderRadius.circular(5)),
-                  alignment: Alignment.center,
-                  child: const Text('View Details', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
-                ),
-              ),
-            ],
+          const Spacer(),
+          Image.asset('assets/102-213.webp', width: 50, height: 50),
+          const SizedBox(width: 12),
+          const Text(
+            'My Piles',
+            style: TextStyle(color: Colors.black, fontSize: 20, fontWeight: FontWeight.w500),
           ),
+          const Spacer(),
+          const SizedBox(width: 24),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNextActionCard() {
+    return Center(
+      child: Container(
+        width: 280,
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: const [
+            BoxShadow(color: Color(0x1F000000), blurRadius: 4, offset: Offset(0, 2))
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Next Action',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                SvgPicture.asset('assets/88-213.svg', width: 32, height: 32),
+                const SizedBox(width: 16),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Turn Pile',
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                    ),
+                    const SizedBox(height: 4),
+                    Opacity(
+                      opacity: 0.6,
+                      child: Text(
+                        'Tomorrow 9:00 AM',
+                        style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPileCard(BuildContext context, {required PileData pile}) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const PileDetailsScreen()),
+        );
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: const [
+            BoxShadow(color: Color(0x1F000000), blurRadius: 4, offset: Offset(0, 2))
+          ],
+        ),
+        child: Column(
+          children: [
+            // Top section with pile name, status, and chart
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          pile.title,
+                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: pile.statusColor,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            pile.status,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  SvgPicture.asset(pile.chartAsset, width: 60, height: 60),
+                ],
+              ),
+            ),
+            
+            // Divider
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Container(height: 1, color: Colors.grey[300]),
+            ),
+
+            // Bottom section with temperature, moisture, and button
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  SvgPicture.asset(pile.tempIconAsset, width: 20, height: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Temp: ${pile.temp}',
+                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                  ),
+                  const SizedBox(width: 20),
+                  SvgPicture.asset(pile.moistureIconAsset, width: 20, height: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Moisture: ${pile.moisture}',
+                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                  ),
+                  const Spacer(),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: pile.buttonColor,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Text(
+                      'View Details',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
