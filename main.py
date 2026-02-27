@@ -310,6 +310,8 @@ def get_latest_health_record(
             status_code=404,
             detail=f"No health records found for compost pile {pile_id}"
         )
+    # if record lacks computed fields (e.g. old rows), calculate and persist
+
     
     return latest_record
 
@@ -339,6 +341,7 @@ def get_all_health_records(
         HealthRecord.pile_id == pile_id
     ).order_by(desc(HealthRecord.timestamp)).limit(limit).all()
     
+
     return records
 
 

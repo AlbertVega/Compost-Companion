@@ -236,16 +236,16 @@ class CreateScreen extends StatelessWidget {
                 child: Text(tag, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
               ),
             ),
-            Positioned(
-              right: 15,
-              top: 15,
-              child: Container(
-                width: 80,
-                height: 40,
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey.withOpacity(0.3)),
-                  borderRadius: BorderRadius.circular(4),
-                ),
+                Positioned(
+                  right: 15,
+                  top: 15,
+                  child: Container(
+                    width: 80,
+                    height: 40,
+                    decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey.withOpacity(0.3)),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [

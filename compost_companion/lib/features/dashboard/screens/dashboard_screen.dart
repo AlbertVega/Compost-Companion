@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:compost_companion/data/models/compost_pile.dart';
+import 'package:compost_companion/data/models/dashboard_pile.dart';
 import 'package:compost_companion/data/services/compost_service.dart';
-import 'package:intl/intl.dart';
+import 'package:compost_companion/features/dashboard/widgets/compost_pile_card.dart';
 import 'notification_screen.dart';
 import 'pile_details_screen.dart';
 
@@ -14,13 +14,13 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  late Future<List<CompostPile>> _futurePiles;
+  late Future<List<DashboardPile>> _futurePiles;
   final _service = CompostService();
 
   @override
   void initState() {
     super.initState();
-    _futurePiles = _service.fetchMyPiles();
+    _futurePiles = _service.fetchDashboardData();
   }
 
   @override
@@ -28,13 +28,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF7F9F6).withOpacity(0.9),
       body: SafeArea(
-        child: FutureBuilder<List<CompostPile>>(
+        child: FutureBuilder<List<DashboardPile>>(
           future: _futurePiles,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
             }
             if (snapshot.hasError) {
+              // global failure fetching piles
               return Center(child: Text('Error: ${snapshot.error}'));
             }
             final piles = snapshot.data ?? [];
@@ -59,7 +60,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     child: Column(
                       children: [
                         for (int i = 0; i < piles.length; i++) ...[
-                          _buildPileCard(context, compost: piles[i]),
+                          CompostPileCard(
+                            pile: piles[i],
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => PileDetailsScreen(
+                                    pileId: piles[i].id,
+                                    pileName: piles[i].name,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
                           if (i < piles.length - 1) const SizedBox(height: 20),
                         ],
                       ],
@@ -152,48 +166,5 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildPileCard(BuildContext context, {required CompostPile compost}) {
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const PileDetailsScreen()),
-        );
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: const [
-            BoxShadow(color: Color(0x1F000000), blurRadius: 4, offset: Offset(0, 2))
-          ],
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                compost.name,
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-              ),
-              if (compost.location != null) ...[
-                const SizedBox(height: 4),
-                Text(compost.location!, style: const TextStyle(fontSize: 14)),
-              ],
-              if (compost.volumeAtCreation != null) ...[
-                const SizedBox(height: 4),
-                Text('Volume: ${compost.volumeAtCreation}', style: const TextStyle(fontSize: 14)),
-              ],
-              const SizedBox(height: 4),
-              Text(
-                'Created: ${DateFormat.yMMMd().format(compost.createdAt)}',
-                style: const TextStyle(fontSize: 12, color: Colors.grey),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+
 }

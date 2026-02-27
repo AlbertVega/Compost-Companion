@@ -6,7 +6,6 @@ import 'package:compost_companion/features/dashboard/screens/dashboard_screen.da
 import 'package:compost_companion/features/dashboard/screens/create_screen.dart';
 import 'package:compost_companion/features/calendar/screens/calendar_screen.dart';
 import 'package:compost_companion/features/dashboard/screens/map_screen.dart';
-import 'package:compost_companion/features/dashboard/models.dart';
 
 void main() {
   runApp(const MyPilesApp());
