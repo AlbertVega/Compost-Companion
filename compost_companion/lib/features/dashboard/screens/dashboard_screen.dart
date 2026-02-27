@@ -1,45 +1,75 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:compost_companion/features/dashboard/models.dart';
+import 'package:compost_companion/data/models/compost_pile.dart';
+import 'package:compost_companion/data/services/compost_service.dart';
+import 'package:intl/intl.dart';
 import 'notification_screen.dart';
 import 'pile_details_screen.dart';
 
-class DashboardScreen extends StatelessWidget {
-  final List<PileData> piles;
-  const DashboardScreen({super.key, required this.piles});
+class DashboardScreen extends StatefulWidget {
+  const DashboardScreen({super.key});
+
+  @override
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen> {
+  late Future<List<CompostPile>> _futurePiles;
+  final _service = CompostService();
+
+  @override
+  void initState() {
+    super.initState();
+    _futurePiles = _service.fetchMyPiles();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF7F9F6).withOpacity(0.9),
       body: SafeArea(
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          child: Column(
-            children: [
-              // Header with notification, logo, and title
-              _buildHeader(context),
-              const SizedBox(height: 24),
+        child: FutureBuilder<List<CompostPile>>(
+          future: _futurePiles,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (snapshot.hasError) {
+              return Center(child: Text('Error: ${snapshot.error}'));
+            }
+            final piles = snapshot.data ?? [];
+            if (piles.isEmpty) {
+              return const Center(child: Text('No compost piles found.'));
+            }
+            return SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: Column(
+                children: [
+                  // Header with notification, logo, and title
+                  _buildHeader(context),
+                  const SizedBox(height: 24),
 
-              // Next Action Card
-              _buildNextActionCard(),
-              const SizedBox(height: 40),
+                  // Next Action Card
+                  _buildNextActionCard(),
+                  const SizedBox(height: 40),
 
-              // Pile Cards List
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Column(
-                  children: [
-                    for (int i = 0; i < piles.length; i++) ...[
-                      _buildPileCard(context, pile: piles[i]),
-                      if (i < piles.length - 1) const SizedBox(height: 20),
-                    ],
-                  ],
-                ),
+                  // Pile Cards List
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Column(
+                      children: [
+                        for (int i = 0; i < piles.length; i++) ...[
+                          _buildPileCard(context, compost: piles[i]),
+                          if (i < piles.length - 1) const SizedBox(height: 20),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 30),
+                ],
               ),
-              const SizedBox(height: 30),
-            ],
-          ),
+            );
+          },
         ),
       ),
     );
@@ -122,7 +152,7 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildPileCard(BuildContext context, {required PileData pile}) {
+  Widget _buildPileCard(BuildContext context, {required CompostPile compost}) {
     return GestureDetector(
       onTap: () {
         Navigator.push(
@@ -138,89 +168,30 @@ class DashboardScreen extends StatelessWidget {
             BoxShadow(color: Color(0x1F000000), blurRadius: 4, offset: Offset(0, 2))
           ],
         ),
-        child: Column(
-          children: [
-            // Top section with pile name, status, and chart
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          pile.title,
-                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                        ),
-                        const SizedBox(height: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: pile.statusColor,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            pile.status,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  SvgPicture.asset(pile.chartAsset, width: 60, height: 60),
-                ],
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                compost.name,
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
               ),
-            ),
-            
-            // Divider
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              child: Container(height: 1, color: Colors.grey[300]),
-            ),
-
-            // Bottom section with temperature, moisture, and button
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  SvgPicture.asset(pile.tempIconAsset, width: 20, height: 20),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Temp: ${pile.temp}',
-                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
-                  ),
-                  const SizedBox(width: 20),
-                  SvgPicture.asset(pile.moistureIconAsset, width: 20, height: 20),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Moisture: ${pile.moisture}',
-                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
-                  ),
-                  const Spacer(),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: pile.buttonColor,
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: const Text(
-                      'View Details',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
+              if (compost.location != null) ...[
+                const SizedBox(height: 4),
+                Text(compost.location!, style: const TextStyle(fontSize: 14)),
+              ],
+              if (compost.volumeAtCreation != null) ...[
+                const SizedBox(height: 4),
+                Text('Volume: ${compost.volumeAtCreation}', style: const TextStyle(fontSize: 14)),
+              ],
+              const SizedBox(height: 4),
+              Text(
+                'Created: ${DateFormat.yMMMd().format(compost.createdAt)}',
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

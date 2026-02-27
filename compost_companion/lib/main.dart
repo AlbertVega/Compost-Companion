@@ -20,57 +20,6 @@ class MyPilesApp extends StatefulWidget {
 }
 
 class _MyPilesAppState extends State<MyPilesApp> {
-  final List<PileData> _piles = [
-    PileData(
-      title: 'Pile A',
-      status: 'Active',
-      statusColor: const Color(0xFF2F6F4E),
-      temp: '52 C',
-      moisture: '58%',
-      chartAsset: 'assets/14-741.svg',
-      tempIconAsset: 'assets/I18-94;14-733.svg',
-      moistureIconAsset: 'assets/14-733.svg',
-      buttonColor: const Color(0xFF2F6F4E),
-    ),
-    PileData(
-      title: 'Pile B',
-      status: 'Curing',
-      statusColor: const Color(0xFFD68D18),
-      temp: '38 C',
-      moisture: '45%',
-      chartAsset: 'assets/I14-749;14-741.svg',
-      tempIconAsset: 'assets/I18-121;14-733.svg',
-      moistureIconAsset: 'assets/I18-112;14-733.svg',
-      buttonColor: const Color(0xFFD68D18),
-    ),
-    PileData(
-      title: 'Pile C',
-      status: 'Needs Attention',
-      statusColor: const Color(0xFFDB181B),
-      temp: '47 C',
-      moisture: '25%',
-      chartAsset: 'assets/I14-746;14-741.svg',
-      tempIconAsset: 'assets/I18-103;14-733.svg',
-      moistureIconAsset: 'assets/I18-130;14-733.svg',
-      buttonColor: const Color(0xFFDB181B),
-    ),
-  ];
-
-  void _addNewPile(String name) {
-    setState(() {
-      _piles.add(PileData(
-        title: name.isEmpty ? 'New Pile' : name,
-        status: 'Active',
-        statusColor: const Color(0xFF2F6F4E),
-        temp: '45 C',
-        moisture: '60%',
-        chartAsset: 'assets/14-741.svg',
-        tempIconAsset: 'assets/I18-94;14-733.svg',
-        moistureIconAsset: 'assets/14-733.svg',
-        buttonColor: const Color(0xFF2F6F4E),
-      ));
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -84,9 +33,7 @@ class _MyPilesAppState extends State<MyPilesApp> {
 }
 
 class MainNavigation extends StatefulWidget {
-  final List<PileData> piles;
-  final Function(String) onSave;
-  const MainNavigation({super.key, required this.piles, required this.onSave});
+  const MainNavigation({super.key});
 
   @override
   State<MainNavigation> createState() => _MainNavigationState();
@@ -104,8 +51,8 @@ class _MainNavigationState extends State<MainNavigation> {
   @override
   Widget build(BuildContext context) {
     final List<Widget> screens = [
-      DashboardScreen(piles: widget.piles),
-      CreateScreen(onSave: widget.onSave),
+      const DashboardScreen(),
+      CreateScreen(onSave: (name) {}),
       const CalendarScreen(),
       const MapScreen(),
     ];

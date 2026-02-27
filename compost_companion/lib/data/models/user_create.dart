@@ -2,15 +2,15 @@ class UserCreate {
   final String username;
   final String email;
   final String password;
-  final String country;
-  final String location;
+  final String? country;
+  final String? location;
 
   UserCreate({
     required this.username,
     required this.email,
     required this.password,
-    required this.country,
-    required this.location,
+    this.country,
+    this.location,
   });
 
   Map<String, dynamic> toJson() {

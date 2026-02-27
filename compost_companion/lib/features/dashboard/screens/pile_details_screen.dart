@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'notification_screen.dart';
 
 class PileDetailsScreen extends StatelessWidget {
   const PileDetailsScreen({super.key});
@@ -22,10 +21,8 @@ class PileDetailsScreen extends StatelessWidget {
                   top: 27,
                   child: GestureDetector(
                     onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const NotificationScreen()),
-                      );
+                      // simply go back to previous screen rather than opening notifications
+                      Navigator.pop(context);
                     },
                     child: SvgPicture.asset('assets/I104-206;7758-11224.svg', width: 10, height: 20),
                   ),

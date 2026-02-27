@@ -1,12 +1,68 @@
 import 'package:flutter/material.dart';
 import 'package:compost_companion/core/theme/app_colors.dart';
 import 'package:compost_companion/features/auth/screens/signup_screen.dart';
+import 'package:compost_companion/data/services/auth_service.dart';
 import 'package:compost_companion/features/calendar/screens/calendar_screen.dart';
-import 'package:compost_companion/features/dashboard/models.dart';
 import 'package:compost_companion/main.dart';
 
-class LoginScreen extends StatelessWidget {
+class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
+
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _usernameController = TextEditingController();
+  final _passwordController = TextEditingController();
+  bool _isLoading = false;
+  final _authService = AuthService();
+
+  @override
+  void dispose() {
+    _usernameController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _handleLogin() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isLoading = true);
+    try {
+      await _authService.login(
+        username: _usernameController.text.trim(),
+        password: _passwordController.text,
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Login successful!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        // proceed to main navigation
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (context) => const MainNavigation(),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -15,69 +71,72 @@ class LoginScreen extends StatelessWidget {
         child: SingleChildScrollView(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24.0),
-            child: Column(
-              children: [
-                const SizedBox(height: 48),
-                // Logo
-                _buildLogo(),
-                const SizedBox(height: 40),
-                // Title
-                Text(
-                  'Compost Companion',
-                  style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                        color: AppColors.darkText,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 28,
-                      ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 12),
-                // Subtitle
-                Text(
-                  'Smart compost tracking made simple',
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: AppColors.secondaryText,
-                        fontSize: 15,
-                      ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 40),
-                // Email Field
-                _buildEmailField(context),
-                const SizedBox(height: 20),
-                // Password Field
-                _buildPasswordField(context),
-                const SizedBox(height: 32),
-                // Login Button
-                _buildLoginButton(context),
-                const SizedBox(height: 16),
-                // Continue as Guest Button
-                _buildTextButton(
-                  context,
-                  'Continue as Guest',
-                  () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) => const CalendarScreen(),
-                      ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 12),
-                // Create Account Button
-                _buildTextButton(
-                  context,
-                  'Create Account',
-                  () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) => const SignupScreen(),
-                      ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 32),
-              ],
+            child: Form(
+              key: _formKey,
+              child: Column(
+                children: [
+                  const SizedBox(height: 48),
+                  // Logo
+                  _buildLogo(),
+                  const SizedBox(height: 40),
+                  // Title
+                  Text(
+                    'Compost Companion',
+                    style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                          color: AppColors.darkText,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 28,
+                        ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 12),
+                  // Subtitle
+                  Text(
+                    'Smart compost tracking made simple',
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          color: AppColors.secondaryText,
+                          fontSize: 15,
+                        ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 40),
+                  // Username Field
+                  _buildUsernameField(context),
+                  const SizedBox(height: 20),
+                  // Password Field
+                  _buildPasswordField(context),
+                  const SizedBox(height: 32),
+                  // Login Button
+                  _buildLoginButton(context),
+                  const SizedBox(height: 16),
+                  // Continue as Guest Button
+                  _buildTextButton(
+                    context,
+                    'Continue as Guest',
+                    () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => const CalendarScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  // Create Account Button
+                  _buildTextButton(
+                    context,
+                    'Create Account',
+                    () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => const SignupScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 32),
+                ],
+              ),
             ),
           ),
         ),
@@ -111,12 +170,12 @@ class LoginScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildEmailField(BuildContext context) {
+  Widget _buildUsernameField(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Email',
+          'Username',
           style: Theme.of(context).textTheme.labelLarge?.copyWith(
                 color: AppColors.darkText,
                 fontWeight: FontWeight.w700,
@@ -124,14 +183,22 @@ class LoginScreen extends StatelessWidget {
               ),
         ),
         const SizedBox(height: 10),
-        TextField(
+        TextFormField(
+          controller: _usernameController,
+          enabled: !_isLoading,
           decoration: InputDecoration(
-            hintText: 'Enter your email',
+            hintText: 'Enter your username',
             prefixIcon: const Icon(
               Icons.person_outline,
               color: AppColors.iconColor,
             ),
           ),
+          validator: (value) {
+            if (value == null || value.isEmpty) {
+              return 'Username is required';
+            }
+            return null;
+          },
         ),
       ],
     );
@@ -150,7 +217,9 @@ class LoginScreen extends StatelessWidget {
               ),
         ),
         const SizedBox(height: 10),
-        TextField(
+        TextFormField(
+          controller: _passwordController,
+          enabled: !_isLoading,
           obscureText: true,
           decoration: InputDecoration(
             hintText: 'Enter your password',
@@ -159,6 +228,12 @@ class LoginScreen extends StatelessWidget {
               color: AppColors.iconColor,
             ),
           ),
+          validator: (value) {
+            if (value == null || value.isEmpty) {
+              return 'Password is required';
+            }
+            return null;
+          },
         ),
       ],
     );
@@ -168,59 +243,20 @@ class LoginScreen extends StatelessWidget {
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton(
-        onPressed: () {
-          // Create demo piles for logged-in session
-          final List<PileData> demoPiles = [
-            PileData(
-              title: 'Pile A',
-              status: 'Active',
-              statusColor: const Color(0xFF2F6F4E),
-              temp: '52 C',
-              moisture: '58%',
-              chartAsset: 'assets/14-741.svg',
-              tempIconAsset: 'assets/I18-94;14-733.svg',
-              moistureIconAsset: 'assets/14-733.svg',
-              buttonColor: const Color(0xFF2F6F4E),
-            ),
-            PileData(
-              title: 'Pile B',
-              status: 'Curing',
-              statusColor: const Color(0xFFD68D18),
-              temp: '38 C',
-              moisture: '45%',
-              chartAsset: 'assets/I14-749;14-741.svg',
-              tempIconAsset: 'assets/I18-121;14-733.svg',
-              moistureIconAsset: 'assets/I18-112;14-733.svg',
-              buttonColor: const Color(0xFFD68D18),
-            ),
-            PileData(
-              title: 'Pile C',
-              status: 'Needs Attention',
-              statusColor: const Color(0xFFDB181B),
-              temp: '47 C',
-              moisture: '25%',
-              chartAsset: 'assets/I14-746;14-741.svg',
-              tempIconAsset: 'assets/I18-103;14-733.svg',
-              moistureIconAsset: 'assets/I18-130;14-733.svg',
-              buttonColor: const Color(0xFFDB181B),
-            ),
-          ];
-          
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(
-              builder: (context) => MainNavigation(
-                piles: demoPiles,
-                onSave: (String name) {
-                  // Placeholder for add pile functionality
-                },
+        onPressed: _isLoading ? null : _handleLogin,
+        child: _isLoading
+            ? const SizedBox(
+                height: 20,
+                width: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              )
+            : const Text(
+                'Login',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
               ),
-            ),
-          );
-        },
-        child: const Text(
-          'Login',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-        ),
       ),
     );
   }
