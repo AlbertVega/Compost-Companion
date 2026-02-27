@@ -16,10 +16,11 @@ class User(Base):
 # 2. CompostPile
 class CompostPile(Base):
     __tablename__ = "compostpile" # PostgreSQL often lowercases names unless quoted
-    pile_ID = Column(Integer, primary_key=True, autoincrement=True)
+    pile_id = Column(Integer, primary_key=True, autoincrement=True)
     username = Column(String(50), ForeignKey("User.username", ondelete="CASCADE"), nullable=False)
     name = Column(String(100), nullable=False)
     volume_at_creation = Column(Numeric(6, 2))
+    location = Column(String(255))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 # 3. HealthRecord
