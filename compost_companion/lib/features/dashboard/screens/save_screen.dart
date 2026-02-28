@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:compost_companion/data/models/ingredient.dart';
 
 class SaveScreen extends StatefulWidget {
   final Function(String) onSave;
-  const SaveScreen({super.key, required this.onSave});
+  final Map<Ingredient,int> selected;
+  const SaveScreen({super.key, required this.onSave, required this.selected});
 
   @override
   State<SaveScreen> createState() => _SaveScreenState();
@@ -13,6 +15,12 @@ class _SaveScreenState extends State<SaveScreen> {
   final TextEditingController _nameController = TextEditingController(text: 'Backyard Sprint Mix');
   final TextEditingController _pileController = TextEditingController();
   int _selectedPile = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    // selected ingredients available via widget.selected
+  }
 
   @override
   Widget build(BuildContext context) {

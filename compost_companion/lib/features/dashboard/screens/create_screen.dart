@@ -1,13 +1,52 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:compost_companion/data/models/ingredient.dart';
 
 import 'notification_screen.dart';
 import 'ingredient_selection_screen.dart';
 import 'review_screen.dart';
 
-class CreateScreen extends StatelessWidget {
+class CreateScreen extends StatefulWidget {
   final Function(String) onSave;
   const CreateScreen({super.key, required this.onSave});
+
+  @override
+  State<CreateScreen> createState() => _CreateScreenState();
+}
+
+class _CreateScreenState extends State<CreateScreen> {
+  Map<Ingredient, int> _selected = {};
+
+  double get carbonTotal {
+    double sum = 0;
+    _selected.forEach((ing, qty) {
+      sum += (ing.carbonContent ?? 0) * qty;
+    });
+    return sum;
+  }
+
+  double get nitrogenTotal {
+    double sum = 0;
+    _selected.forEach((ing, qty) {
+      sum += (ing.nitrogenContent ?? 0) * qty;
+    });
+    return sum;
+  }
+
+  // Phosphorus isn't tracked in the model; placeholder
+  double get phosphorusTotal => 0;
+
+  void _openIngredientPicker() async {
+    final result = await Navigator.push<Map<Ingredient, int>>(
+      context,
+      MaterialPageRoute(builder: (context) => const IngredientSelectionScreen()),
+    );
+    if (result != null) {
+      setState(() {
+        _selected = result;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -99,12 +138,7 @@ class CreateScreen extends StatelessWidget {
                   right: 30,
                   top: 139,
                   child: GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const IngredientSelectionScreen()),
-                      );
-                    },
+                    onTap: _openIngredientPicker,
                     behavior: HitTestBehavior.opaque,
                     child: Row(
                       children: [
@@ -117,6 +151,7 @@ class CreateScreen extends StatelessWidget {
                 ),
 
                 // Search Field
+                // Search field - now shows count of selected items
                 Positioned(
                   left: 54,
                   top: 210,
@@ -133,7 +168,14 @@ class CreateScreen extends StatelessWidget {
                       children: [
                         const Icon(Icons.search, size: 16, color: Colors.black),
                         const SizedBox(width: 8),
-                        Text('Search ingredients...', style: TextStyle(color: Colors.black.withOpacity(0.3), fontSize: 13)),
+                        Expanded(
+                          child: Text(
+                            _selected.isEmpty
+                                ? 'Search ingredients...'
+                                : '${_selected.length} ingredient${_selected.length > 1 ? 's' : ''} selected',
+                            style: TextStyle(color: Colors.black.withOpacity(0.3), fontSize: 13),
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -145,21 +187,21 @@ class CreateScreen extends StatelessWidget {
                   title: 'Carbon Content',
                   tag: 'Green',
                   tagColor: const Color(0xFF2F6F4E),
-                  value: '2',
+                  value: carbonTotal.toStringAsFixed(1),
                 ),
                 _buildIngredientCard(
                   top: 343,
                   title: 'Nitrogen Content',
                   tag: 'Brown',
                   tagColor: const Color(0xFFD68D18),
-                  value: '1',
+                  value: nitrogenTotal.toStringAsFixed(1),
                 ),
                 _buildIngredientCard(
                   top: 426,
                   title: 'Phosphorus Content',
                   tag: 'Green',
                   tagColor: const Color(0xFF2F6F4E),
-                  value: '1',
+                  value: phosphorusTotal.toStringAsFixed(1),
                 ),
 
                 // Summary Section
@@ -177,7 +219,7 @@ class CreateScreen extends StatelessWidget {
                     onTap: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (context) => ReviewScreen(onSave: onSave)),
+                        MaterialPageRoute(builder: (context) => ReviewScreen(onSave: widget.onSave, selected: _selected)),
                       );
                     },
                     child: Container(

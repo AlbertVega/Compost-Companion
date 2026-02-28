@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:compost_companion/data/models/compost_pile.dart';
 import 'package:compost_companion/data/models/dashboard_pile.dart';
+import 'package:compost_companion/data/models/ingredient.dart';
 import 'package:compost_companion/data/services/auth_service.dart';
 
 class CompostService {
@@ -106,5 +107,27 @@ class CompostService {
       ));
     }
     return result;
+  }
+
+  /// Fetch all available ingredients from the server.
+  Future<List<Ingredient>> fetchIngredients() async {
+    final token = _auth.currentToken?.accessToken;
+    final uri = Uri.parse('$baseUrl/ingredients');
+    final resp = await http.get(
+      uri,
+      headers: {
+        'Content-Type': 'application/json',
+        if (token != null) 'Authorization': 'Bearer $token',
+      },
+    ).timeout(const Duration(seconds: 10));
+
+    if (resp.statusCode == 200) {
+      final List<dynamic> body = jsonDecode(resp.body) as List<dynamic>;
+      return body
+          .map((e) => Ingredient.fromJson(e as Map<String, dynamic>))
+          .toList();
+    }
+
+    throw Exception('Failed to load ingredients');
   }
 }

@@ -1,10 +1,30 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:compost_companion/data/models/ingredient.dart';
 import 'save_screen.dart';
 
 class ReviewScreen extends StatelessWidget {
   final Function(String) onSave;
-  const ReviewScreen({super.key, required this.onSave});
+  final Map<Ingredient,int> selected;
+  const ReviewScreen({super.key, required this.onSave, required this.selected});
+
+  double get carbonTotal {
+    double sum = 0;
+    selected.forEach((ing, qty) {
+      sum += (ing.carbonContent ?? 0) * qty;
+    });
+    return sum;
+  }
+
+  double get nitrogenTotal {
+    double sum = 0;
+    selected.forEach((ing, qty) {
+      sum += (ing.nitrogenContent ?? 0) * qty;
+    });
+    return sum;
+  }
+
+  double get phosphorusTotal => 0;
 
   @override
   Widget build(BuildContext context) {
@@ -102,11 +122,11 @@ class ReviewScreen extends StatelessWidget {
                     ),
                     child: Stack(
                       children: [
-                        _buildReviewItem(top: 8, title: 'Carbon Content', tag: 'Green', tagColor: const Color(0xFF2F6F4E), value: '2'),
+                        _buildReviewItem(top: 8, title: 'Carbon Content', tag: 'Green', tagColor: const Color(0xFF2F6F4E), value: carbonTotal.toStringAsFixed(1)),
                         Positioned(left: 2, top: 73, child: Container(width: 355, height: 1, color: const Color(0xFF757575))),
-                        _buildReviewItem(top: 80, title: 'Nitrogen Content', tag: 'Brown', tagColor: const Color(0xFFD68D18), value: '1'),
+                        _buildReviewItem(top: 80, title: 'Nitrogen Content', tag: 'Brown', tagColor: const Color(0xFFD68D18), value: nitrogenTotal.toStringAsFixed(1)),
                         Positioned(left: 4, top: 144, child: Container(width: 355, height: 1, color: const Color(0xFF757575))),
-                        _buildReviewItem(top: 151, title: 'Phosphorus Content', tag: 'Green', tagColor: const Color(0xFF2F6F4E), value: '1'),
+                        _buildReviewItem(top: 151, title: 'Phosphorus Content', tag: 'Green', tagColor: const Color(0xFF2F6F4E), value: phosphorusTotal.toStringAsFixed(1)),
                       ],
                     ),
                   ),
@@ -141,7 +161,7 @@ class ReviewScreen extends StatelessWidget {
                     onTap: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (context) => SaveScreen(onSave: onSave)),
+                        MaterialPageRoute(builder: (context) => SaveScreen(onSave: onSave, selected: selected)),
                       );
                     },
                     child: Container(
