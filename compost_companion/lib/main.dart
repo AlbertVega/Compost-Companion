@@ -40,6 +40,7 @@ class MainNavigation extends StatefulWidget {
 
 class _MainNavigationState extends State<MainNavigation> {
   int _selectedIndex = 0;
+  int _dashboardVersion = 0;
 
   void _onItemTapped(int index) {
     setState(() {
@@ -47,11 +48,18 @@ class _MainNavigationState extends State<MainNavigation> {
     });
   }
 
+  void _onCreateFlowCompleted() {
+    setState(() {
+      _dashboardVersion += 1;
+      _selectedIndex = 0;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final List<Widget> screens = [
-      const DashboardScreen(),
-      CreateScreen(onSave: (name) {}),
+      DashboardScreen(key: ValueKey(_dashboardVersion)),
+      CreateScreen(onSave: (name) {}, onFlowCompleted: _onCreateFlowCompleted),
       const CalendarScreen(),
       const MapScreen(),
     ];

@@ -1,11 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:compost_companion/data/models/ingredient.dart';
+import 'package:compost_companion/features/dashboard/controllers/create_mix_controller.dart';
 
 class SaveScreen extends StatefulWidget {
   final Function(String) onSave;
-  final Map<Ingredient,int> selected;
-  const SaveScreen({super.key, required this.onSave, required this.selected});
+  final CreateMixController controller;
+  final VoidCallback? onFlowCompleted;
+
+  const SaveScreen({
+    super.key,
+    required this.onSave,
+    required this.controller,
+    this.onFlowCompleted,
+  });
 
   @override
   State<SaveScreen> createState() => _SaveScreenState();
@@ -13,200 +20,247 @@ class SaveScreen extends StatefulWidget {
 
 class _SaveScreenState extends State<SaveScreen> {
   final TextEditingController _nameController = TextEditingController(text: 'Backyard Sprint Mix');
-  final TextEditingController _pileController = TextEditingController();
-  int _selectedPile = 0;
+  final TextEditingController _locationController = TextEditingController();
+
+  int? _selectedExistingPileId;
+  bool _createNewPile = true;
 
   @override
   void initState() {
     super.initState();
-    // selected ingredients available via widget.selected
+    widget.controller.loadExistingPiles();
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _locationController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _handleSave() async {
+    final mixName = _nameController.text.trim();
+    if (mixName.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a mix name')),
+      );
+      return;
+    }
+
+    if (_createNewPile) {
+      try {
+        await widget.controller.createNewPile(
+          mixName: mixName,
+          location: _locationController.text.trim().isEmpty ? 'Not specified' : _locationController.text.trim(),
+        );
+        if (!mounted) return;
+        widget.onSave(mixName);
+        widget.onFlowCompleted?.call();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Compost pile created successfully'), backgroundColor: Colors.green),
+        );
+        Navigator.of(context).popUntil((route) => route.isFirst);
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to create pile: ${e.toString().replaceFirst('Exception: ', '')}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
+
+    final selectedPile = widget.controller.existingPiles
+        .where((pile) => pile.id == _selectedExistingPileId)
+        .toList();
+
+    if (selectedPile.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select an existing pile or choose New pile')),
+      );
+      return;
+    }
+
+    if (!mounted) return;
+    widget.onSave(mixName);
+    widget.onFlowCompleted?.call();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Mix saved'), backgroundColor: Colors.green),
+    );
+    Navigator.of(context).popUntil((route) => route.isFirst);
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF7F9F6).withOpacity(0.9),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          child: SizedBox(
-            height: 800,
-            child: Stack(
-              children: [
-                // Header
-                Positioned(
-                  left: 4,
-                  top: 26,
-                  child: GestureDetector(
-                    onTap: () => Navigator.pop(context),
-                    child: SvgPicture.asset('assets/I64-268;7758-11224.svg', width: 10, height: 20),
-                  ),
-                ),
-                Positioned(
-                  left: 71,
-                  top: 12,
-                  child: Image.asset('assets/64-249.webp', width: 70, height: 70),
-                ),
-                const Positioned(
-                  left: 136,
-                  top: 35,
-                  child: Text(
-                    'Compost Companion',
-                    style: TextStyle(color: Colors.black, fontSize: 20, fontWeight: FontWeight.w500),
-                  ),
-                ),
+    return AnimatedBuilder(
+      animation: widget.controller,
+      builder: (context, _) {
+        final existingPiles = widget.controller.existingPiles;
+        final saving = widget.controller.saving;
 
-                // Progress Tabs
-                Positioned(
-                  left: 24,
-                  top: 81,
-                  child: Container(width: 366, height: 1, color: const Color(0xFF757575).withOpacity(0.2)),
-                ),
-                Positioned(
-                  left: 275,
-                  top: 113,
-                  child: Container(width: 63.5, height: 2, color: const Color(0xFF2F6F4E)),
-                ),
-                const Positioned(
-                  left: 53,
-                  top: 89,
-                  child: Opacity(
-                    opacity: 0.5,
-                    child: Text('Ingredients', style: TextStyle(color: Colors.black, fontSize: 13, fontWeight: FontWeight.bold)),
-                  ),
-                ),
-                const Positioned(
-                  left: 178,
-                  top: 88,
-                  child: Opacity(
-                    opacity: 0.5,
-                    child: Text('Review', style: TextStyle(color: Colors.black, fontSize: 13, fontWeight: FontWeight.bold)),
-                  ),
-                ),
-                const Positioned(
-                  left: 283,
-                  top: 89,
-                  child: Text('Save', style: TextStyle(color: Color(0xFF2F6F4E), fontSize: 13, fontWeight: FontWeight.bold)),
-                ),
-
-                // Save Mix Section
-                const Positioned(
-                  left: 41,
-                  top: 144,
-                  child: Text('Save Mix', style: TextStyle(color: Colors.black, fontSize: 20, fontWeight: FontWeight.w500)),
-                ),
-                const Positioned(
-                  left: 41,
-                  top: 180,
-                  child: Opacity(
-                    opacity: 0.5,
-                    child: Text('Customize your compost settings.', style: TextStyle(color: Colors.black, fontSize: 13)),
-                  ),
-                ),
-
-                // Save Card
-                Positioned(
-                  left: 24,
-                  top: 246,
-                  child: Container(
-                    width: 360,
-                    height: 372,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.6),
-                      borderRadius: BorderRadius.circular(8),
-                      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.25), blurRadius: 4, offset: const Offset(0, 4))],
-                    ),
-                    child: Stack(
+        return Scaffold(
+          backgroundColor: const Color(0xFFF7F9F6).withValues(alpha: 0.9),
+          body: SafeArea(
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
                       children: [
-                        const Positioned(left: 18, top: 25, child: Text('Mix name', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w500))),
-                        Positioned(
-                          left: 19,
-                          top: 65,
-                          child: Container(
-                            width: 181,
-                            height: 22,
-                            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(4), border: Border.all(color: Colors.black.withOpacity(0.2))),
-                            child: TextField(
-                              controller: _nameController,
-                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF757575)),
-                              decoration: const InputDecoration(border: InputBorder.none, contentPadding: EdgeInsets.only(left: 13, bottom: 12)),
-                            ),
-                          ),
+                        GestureDetector(
+                          onTap: () => Navigator.pop(context),
+                          child: SvgPicture.asset('assets/I64-268;7758-11224.svg', width: 10, height: 20),
                         ),
-                        Positioned(left: 7.5, top: 102.5, child: Container(width: 335, height: 1, color: const Color(0xFF757575).withOpacity(0.4))),
-                        const Positioned(left: 18, top: 117, child: Text('Assign to Pile', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w500))),
-                        
-                        _buildPileOption(top: 152, title: 'Backyard Pile A', index: 0),
-                        _buildPileOption(top: 183, title: 'Community Pile B', index: 1),
-                        _buildPileOption(top: 216, title: 'New pile (optional)', index: 2),
-
-                        Positioned(
-                          left: 50,
-                          top: 274,
-                          child: Container(
-                            width: 168,
-                            height: 29,
-                            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(4), border: Border.all(color: Colors.black.withOpacity(0.2))),
-                            child: TextField(
-                              controller: _pileController,
-                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF757575)),
-                              decoration: const InputDecoration(hintText: 'Enter pile name', hintStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF757575)), border: InputBorder.none, contentPadding: EdgeInsets.only(left: 23, bottom: 10)),
-                            ),
-                          ),
+                        const Spacer(),
+                        Image.asset('assets/64-249.webp', width: 56, height: 56),
+                        const SizedBox(width: 10),
+                        const Text(
+                          'Compost Companion',
+                          style: TextStyle(color: Colors.black, fontSize: 20, fontWeight: FontWeight.w500),
                         ),
+                        const Spacer(),
+                        const SizedBox(width: 10),
                       ],
                     ),
-                  ),
-                ),
-
-                // Save Button
-                Positioned(
-                  left: 118,
-                  top: 712,
-                  child: GestureDetector(
-                    onTap: () {
-                      widget.onSave(_selectedPile == 2 ? _pileController.text : (_selectedPile == 0 ? 'Backyard Pile A' : 'Community Pile B'));
-                      Navigator.of(context).popUntil((route) => route.isFirst);
-                    },
-                    child: Container(
-                      width: 200,
-                      height: 40,
-                      decoration: BoxDecoration(color: const Color(0xFF2F6F4E), borderRadius: BorderRadius.circular(16)),
-                      alignment: Alignment.center,
-                      child: const Text('Save', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 10),
+                    Container(height: 1, color: const Color(0xFF757575).withValues(alpha: 0.2)),
+                    const SizedBox(height: 8),
+                    const Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        Opacity(
+                          opacity: 0.5,
+                          child: Text('Ingredients', style: TextStyle(color: Colors.black, fontSize: 13, fontWeight: FontWeight.bold)),
+                        ),
+                        Opacity(
+                          opacity: 0.5,
+                          child: Text('Review', style: TextStyle(color: Colors.black, fontSize: 13, fontWeight: FontWeight.bold)),
+                        ),
+                        Text('Save', style: TextStyle(color: Color(0xFF2F6F4E), fontSize: 13, fontWeight: FontWeight.bold)),
+                      ],
                     ),
-                  ),
+                    const SizedBox(height: 6),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: Container(width: 64, height: 2, color: const Color(0xFF2F6F4E)),
+                    ),
+                    const SizedBox(height: 20),
+                    const Text('Save Mix', style: TextStyle(color: Colors.black, fontSize: 20, fontWeight: FontWeight.w500)),
+                    const SizedBox(height: 6),
+                    const Opacity(
+                      opacity: 0.5,
+                      child: Text('Customize your compost settings.', style: TextStyle(color: Colors.black, fontSize: 13)),
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.8),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Mix name', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                          const SizedBox(height: 8),
+                          TextField(
+                            controller: _nameController,
+                            decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true),
+                          ),
+                          const SizedBox(height: 14),
+                          const Text('Assign to pile', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                          const SizedBox(height: 8),
+                          if (widget.controller.loadingPiles)
+                            const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 6),
+                              child: LinearProgressIndicator(),
+                            ),
+                          ...existingPiles.map(
+                            (pile) => ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              dense: true,
+                              onTap: () {
+                                setState(() {
+                                  _createNewPile = false;
+                                  _selectedExistingPileId = pile.id;
+                                });
+                              },
+                              leading: Icon(
+                                !_createNewPile && _selectedExistingPileId == pile.id
+                                    ? Icons.radio_button_checked
+                                    : Icons.radio_button_unchecked,
+                                color: const Color(0xFF2F6F4E),
+                              ),
+                              title: Text(pile.name),
+                            ),
+                          ),
+                          ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            dense: true,
+                            onTap: () {
+                              setState(() {
+                                _createNewPile = true;
+                                _selectedExistingPileId = null;
+                              });
+                            },
+                            leading: Icon(
+                              _createNewPile ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+                              color: const Color(0xFF2F6F4E),
+                            ),
+                            title: const Text('New pile'),
+                          ),
+                          if (_createNewPile) ...[
+                            const SizedBox(height: 8),
+                            const Text('Pile location (optional)', style: TextStyle(fontSize: 14)),
+                            const SizedBox(height: 6),
+                            TextField(
+                              controller: _locationController,
+                              decoration: const InputDecoration(
+                                border: OutlineInputBorder(),
+                                hintText: 'Enter location',
+                                isDense: true,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Volume at creation: ${widget.controller.totalVolume.toStringAsFixed(1)}',
+                              style: TextStyle(color: Colors.black.withValues(alpha: 0.7)),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: saving ? null : _handleSave,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF2F6F4E),
+                        ),
+                        child: saving
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                              )
+                            : const Text('Save'),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                  ],
                 ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPileOption({required double top, required String title, required int index}) {
-    return Positioned(
-      left: 18,
-      top: top,
-      child: GestureDetector(
-        onTap: () => setState(() => _selectedPile = index),
-        child: Row(
-          children: [
-            Container(
-              width: 14,
-              height: 14,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(color: const Color(0xFF757575).withOpacity(0.5)),
-                color: _selectedPile == index ? const Color(0xFF2F6F4E) : Colors.white,
               ),
             ),
-            const SizedBox(width: 18),
-            Text(title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w500)),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }

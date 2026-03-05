@@ -130,4 +130,45 @@ class CompostService {
 
     throw Exception('Failed to load ingredients');
   }
+
+  Future<CompostPile> createCompostPile({
+    required String name,
+    required double volumeAtCreation,
+    required String location,
+  }) async {
+    final token = _auth.currentToken?.accessToken;
+    if (token == null) {
+      throw Exception('No authentication token available');
+    }
+
+    final uri = Uri.parse('$baseUrl/compost-piles/create');
+    final resp = await http
+        .post(
+          uri,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+          body: jsonEncode({
+            'name': name,
+            'volume_at_creation': volumeAtCreation,
+            'location': location,
+          }),
+        )
+        .timeout(const Duration(seconds: 10));
+
+    if (resp.statusCode == 200 || resp.statusCode == 201) {
+      final body = jsonDecode(resp.body) as Map<String, dynamic>;
+      return CompostPile.fromJson(body);
+    }
+
+    String message = 'Failed to create compost pile';
+    try {
+      final decoded = jsonDecode(resp.body);
+      if (decoded is Map && decoded['detail'] != null) {
+        message = decoded['detail'].toString();
+      }
+    } catch (_) {}
+    throw Exception(message);
+  }
 }

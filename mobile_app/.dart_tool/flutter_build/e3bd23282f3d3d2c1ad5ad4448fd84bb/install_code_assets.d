@@ -1,0 +1,1 @@
+ /home/umi/Documentos/Arqui2/Compost-Companion/mobile_app/.dart_tool/flutter_build/e3bd23282f3d3d2c1ad5ad4448fd84bb/native_assets.json: 

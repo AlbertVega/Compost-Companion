@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:compost_companion/data/models/ingredient.dart';
+import 'package:compost_companion/data/models/compost_pile.dart';
 import 'package:compost_companion/data/services/compost_service.dart';
 
 /// Manages state for the "Create / Build a Mix" screen.
@@ -9,7 +10,11 @@ class CreateMixController extends ChangeNotifier {
   CreateMixController({CompostService? service}) : _service = service ?? CompostService();
 
   bool loading = false;
+  bool saving = false;
+  String? saveError;
+  bool loadingPiles = false;
   List<Ingredient> allIngredients = [];
+  List<CompostPile> existingPiles = [];
   /// map ingredient -> quantity
   final Map<Ingredient, int> _selected = {};
 
@@ -28,11 +33,37 @@ class CreateMixController extends ChangeNotifier {
     }
   }
 
+  Future<void> loadExistingPiles() async {
+    loadingPiles = true;
+    notifyListeners();
+    try {
+      existingPiles = await _service.fetchMyPiles();
+    } catch (_) {
+      existingPiles = [];
+    } finally {
+      loadingPiles = false;
+      notifyListeners();
+    }
+  }
+
   void addIngredient(Ingredient ing) {
     if (_selected.containsKey(ing)) {
       _selected[ing] = _selected[ing]! + 1;
     } else {
       _selected[ing] = 1;
+    }
+    notifyListeners();
+  }
+
+  void addAvailableIngredient(Ingredient ingredient) {
+    final existingIndex = allIngredients.indexWhere(
+      (item) => item.name.toLowerCase() == ingredient.name.toLowerCase(),
+    );
+
+    if (existingIndex >= 0) {
+      allIngredients[existingIndex] = ingredient;
+    } else {
+      allIngredients = [...allIngredients, ingredient];
     }
     notifyListeners();
   }
@@ -79,6 +110,14 @@ class CreateMixController extends ChangeNotifier {
     return totalQty > 0 ? totalMoisture / totalQty : 0;
   }
 
+  double get totalVolume {
+    int totalQty = 0;
+    _selected.forEach((_, qty) {
+      totalQty += qty;
+    });
+    return totalQty.toDouble();
+  }
+
   double get cnRatio {
     if (totalNitrogen == 0) return 0;
     return totalCarbon / totalNitrogen;
@@ -93,8 +132,9 @@ class CreateMixController extends ChangeNotifier {
   String get ratioStatus {
     final r = cnRatio;
     if (r == 0) return '—';
-    if (r < 25) return 'Bad';
-    if (r <= 30) return 'Good';
+    if (r >= 25 && r <= 30) return 'Good';
+    if (r >= 20 && r < 25) return 'Acceptable';
+    if (r > 30 && r <= 35) return 'Acceptable';
     return 'Bad';
   }
 
@@ -110,10 +150,35 @@ class CreateMixController extends ChangeNotifier {
     switch (ratioStatus) {
       case 'Good':
         return Colors.green;
+      case 'Acceptable':
+        return Colors.orange;
       case 'Bad':
         return Colors.red;
       default:
         return Colors.grey;
+    }
+  }
+
+  Future<void> createNewPile({
+    required String mixName,
+    required String location,
+  }) async {
+    saving = true;
+    saveError = null;
+    notifyListeners();
+
+    try {
+      await _service.createCompostPile(
+        name: mixName,
+        volumeAtCreation: totalVolume,
+        location: location,
+      );
+    } catch (e) {
+      saveError = e.toString();
+      rethrow;
+    } finally {
+      saving = false;
+      notifyListeners();
     }
   }
 }
