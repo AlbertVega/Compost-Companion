@@ -20,6 +20,14 @@ class CreateMixController extends ChangeNotifier {
 
   Map<Ingredient, int> get selected => Map.unmodifiable(_selected);
 
+  Map<String, int> get selectedIngredientSummary {
+    final Map<String, int> summary = {};
+    _selected.forEach((ingredient, quantity) {
+      summary[ingredient.name] = quantity;
+    });
+    return summary;
+  }
+
   Future<void> loadIngredients() async {
     loading = true;
     notifyListeners();
@@ -159,7 +167,7 @@ class CreateMixController extends ChangeNotifier {
     }
   }
 
-  Future<void> createNewPile({
+  Future<CompostPile> createNewPile({
     required String mixName,
     required String location,
   }) async {
@@ -168,7 +176,7 @@ class CreateMixController extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await _service.createCompostPile(
+      return await _service.createCompostPile(
         name: mixName,
         volumeAtCreation: totalVolume,
         location: location,
@@ -180,5 +188,10 @@ class CreateMixController extends ChangeNotifier {
       saving = false;
       notifyListeners();
     }
+  }
+
+  void clearSelectedIngredients() {
+    _selected.clear();
+    notifyListeners();
   }
 }

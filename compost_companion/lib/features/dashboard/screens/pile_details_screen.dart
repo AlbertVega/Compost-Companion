@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:compost_companion/data/services/compost_service.dart';
 import 'package:compost_companion/data/models/dashboard_pile.dart';
+import 'package:compost_companion/data/models/pile_ingredient_selection.dart';
+import 'package:compost_companion/data/services/pile_ingredient_store.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:compost_companion/features/dashboard/screens/notification_screen.dart';
 
@@ -19,6 +21,7 @@ class _PileDetailsScreenState extends State<PileDetailsScreen> {
   HealthRecord? _record;
   String? _error;
   bool _loading = true;
+  final PileIngredientStore _pileIngredientStore = PileIngredientStore();
 
   @override
   void initState() {
@@ -88,149 +91,206 @@ class _PileDetailsScreenState extends State<PileDetailsScreen> {
         child: _loading
             ? const Center(child: CircularProgressIndicator())
             : SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+                horizontal: 24.0, vertical: 12.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const NotificationScreen(),
+                          ),
+                        );
+                      },
+                      child: SvgPicture.asset(
+                        'assets/I64-321;7758-11128.svg',
+                        width: 24,
+                        height: 24,
+                        color: color,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        widget.pileName ?? 'Pile ${widget.pileId}',
+                        style: const TextStyle(
+                            fontSize: 20, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ],
+                ),
+                if (_error != null) ...[
+                  const SizedBox(height: 12),
+                  Text('Error: $_error',
+                      style: const TextStyle(color: Colors.red)),
+                ],
+                const SizedBox(height: 16),
+
+                // Health Score Card
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(color: Colors.black.withOpacity(0.05),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4))
+                    ],
+                  ),
+                  child: Row(
                     children: [
-                      Row(
-                        children: [
-                          GestureDetector(
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => const NotificationScreen(),
-                                ),
-                              );
-                            },
-                            child: SvgPicture.asset(
-                              'assets/I64-321;7758-11128.svg',
-                              width: 24,
-                              height: 24,
-                              color: color,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              widget.pileName ?? 'Pile ${widget.pileId}',
-                              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
-                            ),
-                          ),
-                        ],
-                      ),
-                      if (_error != null) ...[
-                        const SizedBox(height: 12),
-                        Text('Error: $_error', style: const TextStyle(color: Colors.red)),
-                      ],
-                      const SizedBox(height: 16),
-
-                      // Health Score Card
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))],
-                        ),
-                        child: Row(
+                      SizedBox(
+                        width: 100,
+                        height: 100,
+                        child: Stack(
+                          alignment: Alignment.center,
                           children: [
-                            SizedBox(
-                              width: 100,
-                              height: 100,
-                              child: Stack(
-                                alignment: Alignment.center,
-                                children: [
-                                  CircularProgressIndicator(value: score, color: color, strokeWidth: 10),
-                                  Text('${(score * 100).round()}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(label, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: color)),
-                                  const SizedBox(height: 8),
-                                  Opacity(opacity: 0.7, child: Text(_record != null ? 'Updated ${_record!.timestamp.toLocal()}' : 'No recent record')),
-                                ],
-                              ),
-                            ),
+                            CircularProgressIndicator(
+                                value: score, color: color, strokeWidth: 10),
+                            Text('${(score * 100).round()}',
+                                style: const TextStyle(
+                                    fontSize: 18, fontWeight: FontWeight.bold)),
                           ],
                         ),
                       ),
-
-                      const SizedBox(height: 16),
-
-                      // Metrics Row
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
-                        child: Row(
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Icon(Icons.thermostat, color: color),
-                            const SizedBox(width: 8),
-                            Text(_record != null ? '${_record!.temperature.toStringAsFixed(1)} °C' : '—'),
-                            const SizedBox(width: 24),
-                            Icon(Icons.water_drop, color: color),
-                            const SizedBox(width: 8),
-                            Text(_record != null ? '${_record!.moisture.toStringAsFixed(1)} %' : '—'),
-                            const Spacer(),
-                            // mini chart
-                            Container(width: 60, height: 34, decoration: BoxDecoration(color: color.withOpacity(0.12), borderRadius: BorderRadius.circular(8)), child: CustomPaint(painter: _MiniChartPainter(color: color))),
+                            Text(label, style: TextStyle(fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: color)),
+                            const SizedBox(height: 8),
+                            Opacity(opacity: 0.7,
+                                child: Text(
+                                    _record != null
+                                        ? 'Updated ${_record!.timestamp
+                                        .toLocal()}'
+                                        : 'No recent record')),
                           ],
                         ),
                       ),
-
-                      const SizedBox(height: 16),
-
-                      // Ingredients (placeholder)
-                      const Text('Ingredients', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 8),
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
-                        child: Column(
-                          children: const [
-                            ListTile(title: Text('Manure'), subtitle: Text('Placeholder ingredient')),
-                            ListTile(title: Text('Straw'), subtitle: Text('Placeholder ingredient')),
-                            ListTile(title: Text('Grass'), subtitle: Text('Placeholder ingredient')),
-                          ],
-                        ),
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      const Text('Upcoming Tasks', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 8),
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
-                        child: Column(
-                          children: const [
-                            ListTile(leading: Icon(Icons.refresh), title: Text('Turn Pile'), subtitle: Text('Tomorrow, 9:00 AM')),
-                            ListTile(leading: Icon(Icons.water_drop), title: Text('Check Moisture'), subtitle: Text('Friday, 10:00 AM')),
-                          ],
-                        ),
-                      ),
-
-                      const SizedBox(height: 24),
-                      Center(
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(backgroundColor: color, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)), padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 14)),
-                          onPressed: () => Navigator.pop(context),
-                          child: const Text('OK', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                        ),
-                      ),
-                      const SizedBox(height: 40),
                     ],
                   ),
                 ),
+
+                const SizedBox(height: 16),
+
+                // Metrics Row
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(color: Colors.white,
+                      borderRadius: BorderRadius.circular(16)),
+                  child: Row(
+                    children: [
+                      Icon(Icons.thermostat, color: color),
+                      const SizedBox(width: 8),
+                      Text(_record != null ? '${_record!.temperature
+                          .toStringAsFixed(1)} °C' : '—'),
+                      const SizedBox(width: 24),
+                      Icon(Icons.water_drop, color: color),
+                      const SizedBox(width: 8),
+                      Text(_record != null ? '${_record!.moisture
+                          .toStringAsFixed(1)} %' : '—'),
+                      const Spacer(),
+                      // mini chart
+                      Container(width: 60,
+                          height: 34,
+                          decoration: BoxDecoration(color: color.withOpacity(
+                              0.12), borderRadius: BorderRadius.circular(8)),
+                          child: CustomPaint(painter: _MiniChartPainter(
+                              color: color))),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+
+                // Ingredients (placeholder)
+                const Text('Ingredients', style: TextStyle(
+                    fontSize: 18, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                _buildIngredientsCard(),
+                const SizedBox(height: 16),
+
+                const Text('Upcoming Tasks', style: TextStyle(
+                    fontSize: 18, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(color: Colors.white,
+                      borderRadius: BorderRadius.circular(12)),
+                  child: Column(
+                    children: const [
+                      ListTile(leading: Icon(Icons.refresh),
+                          title: Text('Turn Pile'),
+                          subtitle: Text('Tomorrow, 9:00 AM')),
+                      ListTile(leading: Icon(Icons.water_drop),
+                          title: Text('Check Moisture'),
+                          subtitle: Text('Friday, 10:00 AM')),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+                Center(
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(backgroundColor: color,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(24)),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 48, vertical: 14)),
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('OK', style: TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.bold)),
+                  ),
+                ),
+                const SizedBox(height: 40),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildIngredientsCard() {
+    final List<PileIngredientSelection> selectedIngredients =
+    _pileIngredientStore.getPileIngredients(widget.pileId);
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+          color: Colors.white, borderRadius: BorderRadius.circular(12)),
+      child: selectedIngredients.isEmpty
+          ? const Text(
+        'No saved ingredient mix found for this pile yet.',
+        style: TextStyle(color: Colors.grey),
+      )
+          : Column(
+        children: selectedIngredients
+            .map(
+              (ingredient) =>
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(ingredient.ingredientName),
+                trailing: Text(
+                  'x${ingredient.quantity}',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
               ),
+        )
+            .toList(),
       ),
     );
   }

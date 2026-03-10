@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:compost_companion/features/dashboard/controllers/create_mix_controller.dart';
+import 'package:compost_companion/data/services/pile_ingredient_store.dart';
 
 class SaveScreen extends StatefulWidget {
   final Function(String) onSave;
@@ -24,6 +25,7 @@ class _SaveScreenState extends State<SaveScreen> {
 
   int? _selectedExistingPileId;
   bool _createNewPile = true;
+  final PileIngredientStore _pileIngredientStore = PileIngredientStore();
 
   @override
   void initState() {
@@ -49,17 +51,22 @@ class _SaveScreenState extends State<SaveScreen> {
 
     if (_createNewPile) {
       try {
-        await widget.controller.createNewPile(
+        final createdPile = await widget.controller.createNewPile(
           mixName: mixName,
           location: _locationController.text.trim().isEmpty ? 'Not specified' : _locationController.text.trim(),
+        );
+        _pileIngredientStore.savePileIngredients(
+          createdPile.id,
+          widget.controller.selectedIngredientSummary,
         );
         if (!mounted) return;
         widget.onSave(mixName);
         widget.onFlowCompleted?.call();
+        widget.controller.clearSelectedIngredients();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Compost pile created successfully'), backgroundColor: Colors.green),
         );
-        Navigator.of(context).popUntil((route) => route.isFirst);
+        _finishCreateFlow();
       } catch (e) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -84,12 +91,27 @@ class _SaveScreenState extends State<SaveScreen> {
     }
 
     if (!mounted) return;
+    _pileIngredientStore.savePileIngredients(
+      _selectedExistingPileId!,
+      widget.controller.selectedIngredientSummary,
+    );
     widget.onSave(mixName);
     widget.onFlowCompleted?.call();
+    widget.controller.clearSelectedIngredients();
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Mix saved'), backgroundColor: Colors.green),
     );
-    Navigator.of(context).popUntil((route) => route.isFirst);
+    _finishCreateFlow();
+  }
+
+  void _finishCreateFlow() {
+    final navigator = Navigator.of(context);
+    if (navigator.canPop()) {
+      navigator.pop(); // Save -> Review
+    }
+    if (navigator.canPop()) {
+      navigator.pop(); // Review -> Create tab (inside MainNavigation)
+    }
   }
 
   @override
