@@ -54,6 +54,9 @@ class _MyPilesAppState extends State<MyPilesApp> {
     ),
   ];
 
+  // Global state for map pins to ensure persistence across tabs
+  final Map<String, SoilPin> _globalSoilPins = {};
+
   void _addNewPile(String name) {
     setState(() {
       _piles.add(PileData(
@@ -70,6 +73,18 @@ class _MyPilesAppState extends State<MyPilesApp> {
     });
   }
 
+  void _addGlobalPin(SoilPin pin) {
+    setState(() {
+      _globalSoilPins[pin.id] = pin;
+    });
+  }
+
+  void _removeGlobalPin(String id) {
+    setState(() {
+      _globalSoilPins.remove(id);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -80,7 +95,13 @@ class _MyPilesAppState extends State<MyPilesApp> {
         useMaterial3: true,
         fontFamily: 'Inter',
       ),
-      home: MainNavigation(piles: _piles, onSave: _addNewPile),
+      home: MainNavigation(
+        piles: _piles, 
+        onSave: _addNewPile,
+        globalPins: _globalSoilPins,
+        onAddPin: _addGlobalPin,
+        onRemovePin: _removeGlobalPin,
+      ),
     );
   }
 }
@@ -88,7 +109,18 @@ class _MyPilesAppState extends State<MyPilesApp> {
 class MainNavigation extends StatefulWidget {
   final List<PileData> piles;
   final Function(String) onSave;
-  const MainNavigation({super.key, required this.piles, required this.onSave});
+  final Map<String, SoilPin> globalPins;
+  final Function(SoilPin) onAddPin;
+  final Function(String) onRemovePin;
+
+  const MainNavigation({
+    super.key, 
+    required this.piles, 
+    required this.onSave,
+    required this.globalPins,
+    required this.onAddPin,
+    required this.onRemovePin,
+  });
 
   @override
   State<MainNavigation> createState() => _MainNavigationState();
@@ -109,11 +141,19 @@ class _MainNavigationState extends State<MainNavigation> {
       DashboardScreen(piles: widget.piles),
       CreateScreen(onSave: widget.onSave),
       const CalendarScreen(),
-      const MapScreen(),
+      MapScreen(
+        globalPins: widget.globalPins,
+        onAddPin: widget.onAddPin,
+        onRemovePin: widget.onRemovePin,
+      ),
     ];
 
     return Scaffold(
-      body: screens[_selectedIndex],
+      // IndexedStack keeps all screens alive in the background
+      body: IndexedStack(
+        index: _selectedIndex,
+        children: screens,
+      ),
       bottomNavigationBar: Container(
         height: 83,
         decoration: const BoxDecoration(
