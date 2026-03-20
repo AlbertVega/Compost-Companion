@@ -197,9 +197,9 @@ class _IngredientSelectionScreenState extends State<IngredientSelectionScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Total C: ${_ctrl.totalCarbon.toStringAsFixed(1)}'),
-                      Text('Total N: ${_ctrl.totalNitrogen.toStringAsFixed(1)}'),
-                      Text('Moisture: ${_ctrl.moisture.toStringAsFixed(1)}%'),
+                      Text('Total C: ${_ctrl.totalCarbon.toStringAsFixed(2)}'),
+                      Text('Total N: ${_ctrl.totalNitrogen.toStringAsFixed(2)}'),
+                      Text('Moisture: ${_ctrl.moisture.toStringAsFixed(2)}%'),
                       Row(
                         children: [
                           Text('C:N ${_ctrl.ratioLabel}'),

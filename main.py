@@ -13,6 +13,7 @@ from jose import JWTError, jwt
 from database import engine, get_db
 import models
 from models import User, CompostPile, HealthRecord, Ingredient
+from AI_Agent.expert_system import CompostExpertSystem
 from schemas import (
     UserCreate,
     UserResponse,
@@ -25,6 +26,8 @@ from schemas import (
     IngredientResponse,
     Token,
     TokenData,
+    EvaluateRecipeRequest,
+    RecipeEvaluation
 )
 import bcrypt
 
@@ -403,3 +406,15 @@ def create_ingredient(
     
     db.refresh(db_ingredient)
     return db_ingredient
+
+# ============================================================================
+# EXPERT SYSTEM ENDPOINTS
+# ============================================================================
+
+@app.post("/evaluate-recipe", response_model=RecipeEvaluation)
+def evaluate_recipe(request: EvaluateRecipeRequest):
+    expert_system = CompostExpertSystem()
+    return expert_system.evaluate_recipe(
+        ingredients=request.selected_ingredients,
+        available_ingredients=request.available_ingredients
+    )

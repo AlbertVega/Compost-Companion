@@ -140,10 +140,10 @@ class ReviewScreen extends StatelessWidget {
                             style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
                           ),
                           const SizedBox(height: 10),
-                          _buildValueRow('Carbon Content', controller.totalCarbon.toStringAsFixed(1)),
-                          _buildValueRow('Nitrogen Content', controller.totalNitrogen.toStringAsFixed(1)),
+                          _buildValueRow('Carbon Content', controller.totalCarbon.toStringAsFixed(2)),
+                          _buildValueRow('Nitrogen Content', controller.totalNitrogen.toStringAsFixed(2)),
                           _buildValueRow('C:N Ratio', controller.ratioLabel),
-                          _buildValueRow('Moisture', '${controller.moisture.toStringAsFixed(1)}%'),
+                          _buildValueRow('Moisture', '${controller.moisture.toStringAsFixed(2)}%'),
                           const SizedBox(height: 8),
                           Row(
                             children: [

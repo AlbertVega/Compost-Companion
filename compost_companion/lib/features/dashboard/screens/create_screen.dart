@@ -225,7 +225,7 @@ class _CreateScreenState extends State<CreateScreen> {
                   dense: true,
                   title: Text(ingredient.name),
                   subtitle: Text(
-                    'C: ${ (ingredient.carbonContent ?? 0).toStringAsFixed(1) }  N: ${ (ingredient.nitrogenContent ?? 0).toStringAsFixed(1) }',
+                    'C: ${ (ingredient.carbonContent ?? 0).toStringAsFixed(2) }  N: ${ (ingredient.nitrogenContent ?? 0).toStringAsFixed(2) }',
                     style: const TextStyle(fontSize: 12),
                   ),
                   onTap: () => _onIngredientSelected(ingredient),
@@ -364,7 +364,7 @@ class _CreateScreenState extends State<CreateScreen> {
             children: [
               const Text('Moisture', style: TextStyle(fontSize: 14)),
               Text(
-                '${_controller.moisture.toStringAsFixed(1)}%',
+                '${_controller.moisture.toStringAsFixed(2)}%',
                 style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
               ),
             ],
@@ -462,14 +462,14 @@ class _CreateScreenState extends State<CreateScreen> {
                   title: 'Carbon Content',
                   tag: 'Green',
                   tagColor: const Color(0xFF2F6F4E),
-                  value: _controller.totalCarbon.toStringAsFixed(1),
+                  value: _controller.totalCarbon.toStringAsFixed(2),
                 ),
                 const SizedBox(height: 10),
                 _buildNutrientCard(
                   title: 'Nitrogen Content',
                   tag: 'Brown',
                   tagColor: const Color(0xFFD68D18),
-                  value: _controller.totalNitrogen.toStringAsFixed(1),
+                  value: _controller.totalNitrogen.toStringAsFixed(2),
                 ),
                 const SizedBox(height: 10),
                 _buildEstimatesCard(),

@@ -171,4 +171,41 @@ class CompostService {
     } catch (_) {}
     throw Exception(message);
   }
+
+  Future<Map<String, dynamic>> evaluateRecipe(Map<Ingredient, int> selectedMap, List<Ingredient> availableList) async {
+    final uri = Uri.parse('$baseUrl/evaluate-recipe');
+
+    final selectedJson = selectedMap.entries.map((entry) => {
+      'name': entry.key.name,
+      'weight_kg': entry.value.toDouble(),
+      'moisture_content': entry.key.moistureContent ?? 0.0,
+      'nitrogen_content': entry.key.nitrogenContent ?? 0.0,
+      'carbon_content': entry.key.carbonContent ?? 0.0,
+    }).toList();
+
+    final availableJson = availableList.map((i) => {
+      'name': i.name,
+      'weight_kg': 0.0,
+      'moisture_content': i.moistureContent ?? 0.0,
+      'nitrogen_content': i.nitrogenContent ?? 0.0,
+      'carbon_content': i.carbonContent ?? 0.0,
+    }).toList();
+
+    final body = jsonEncode({
+      'selected_ingredients': selectedJson,
+      'available_ingredients': availableJson,
+    });
+
+    final resp = await http.post(
+      uri,
+      headers: {'Content-Type': 'application/json'},
+      body: body,
+    ).timeout(const Duration(seconds: 15));
+
+    if (resp.statusCode == 200) {
+      return jsonDecode(resp.body);
+    } else {
+      throw Exception('Failed to evaluate recipe: ${resp.body}');
+    }
+  }
 }

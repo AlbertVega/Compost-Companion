@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:compost_companion/data/models/ingredient.dart';
 import 'package:compost_companion/data/models/compost_pile.dart';
@@ -17,6 +18,10 @@ class CreateMixController extends ChangeNotifier {
   List<CompostPile> existingPiles = [];
   /// map ingredient -> quantity
   final Map<Ingredient, int> _selected = {};
+
+  Map<String, dynamic>? expertEvaluation;
+  bool evaluating = false;
+  Timer? _debounce;
 
   Map<Ingredient, int> get selected => Map.unmodifiable(_selected);
 
@@ -60,6 +65,7 @@ class CreateMixController extends ChangeNotifier {
     } else {
       _selected[ing] = 1;
     }
+    _triggerEvaluation();
     notifyListeners();
   }
 
@@ -78,6 +84,7 @@ class CreateMixController extends ChangeNotifier {
 
   void removeIngredient(Ingredient ing) {
     _selected.remove(ing);
+    _triggerEvaluation();
     notifyListeners();
   }
 
@@ -89,10 +96,45 @@ class CreateMixController extends ChangeNotifier {
     } else {
       _selected[ing] = newQty;
     }
+    _triggerEvaluation();
     notifyListeners();
   }
 
+  void clearSelectedIngredients() {
+    _selected.clear();
+    _triggerEvaluation();
+    notifyListeners();
+  }
+
+  void _triggerEvaluation() {
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    _debounce = Timer(const Duration(milliseconds: 500), () async {
+      if (_selected.isEmpty) {
+        expertEvaluation = null;
+        evaluating = false;
+        notifyListeners();
+        return;
+      }
+      
+      evaluating = true;
+      notifyListeners();
+      
+      try {
+        expertEvaluation = await _service.evaluateRecipe(_selected, allIngredients);
+      } catch (e) {
+        print('Error evaluating recipe: $e');
+        expertEvaluation = null;
+      } finally {
+        evaluating = false;
+        notifyListeners();
+      }
+    });
+  }
+
   double get totalCarbon {
+    if (expertEvaluation != null && expertEvaluation!['total_carbon_weight'] != null) {
+      return (expertEvaluation!['total_carbon_weight'] as num).toDouble();
+    }
     double sum = 0;
     _selected.forEach((ing, qty) {
       sum += (ing.carbonContent ?? 0) * qty;
@@ -101,6 +143,9 @@ class CreateMixController extends ChangeNotifier {
   }
 
   double get totalNitrogen {
+    if (expertEvaluation != null && expertEvaluation!['total_nitrogen_weight'] != null) {
+      return (expertEvaluation!['total_nitrogen_weight'] as num).toDouble();
+    }
     double sum = 0;
     _selected.forEach((ing, qty) {
       sum += (ing.nitrogenContent ?? 0) * qty;
@@ -109,6 +154,9 @@ class CreateMixController extends ChangeNotifier {
   }
 
   double get moisture {
+    if (expertEvaluation != null && expertEvaluation!['calculated_moisture_percent'] != null) {
+      return (expertEvaluation!['calculated_moisture_percent'] as num).toDouble();
+    }
     double totalMoisture = 0;
     int totalQty = 0;
     _selected.forEach((ing, qty) {
@@ -127,6 +175,9 @@ class CreateMixController extends ChangeNotifier {
   }
 
   double get cnRatio {
+    if (expertEvaluation != null && expertEvaluation!['calculated_cn_ratio'] != null) {
+      return (expertEvaluation!['calculated_cn_ratio'] as num).toDouble();
+    }
     if (totalNitrogen == 0) return 0;
     return totalCarbon / totalNitrogen;
   }
@@ -134,19 +185,32 @@ class CreateMixController extends ChangeNotifier {
   String get ratioLabel {
     final ratio = cnRatio;
     if (ratio == 0) return '—';
-    return '${ratio.toStringAsFixed(1)}:1';
+    return '${ratio.toStringAsFixed(2)}:1';
   }
 
   String get ratioStatus {
     final r = cnRatio;
     if (r == 0) return '—';
     if (r >= 25 && r <= 30) return 'Good';
-    if (r >= 20 && r < 25) return 'Acceptable';
+    if (r >= 15 && r < 25) return 'Acceptable';
     if (r > 30 && r <= 35) return 'Acceptable';
     return 'Bad';
   }
 
   String get suggestion {
+    if (evaluating) {
+      return 'Analyzing recipe...';
+    }
+
+    if (expertEvaluation != null && expertEvaluation!['suggestions'] != null) {
+      final suggestionsList = expertEvaluation!['suggestions'] as List;
+      if (suggestionsList.isNotEmpty) {
+        // Return the recommendation from the highest severity issue
+        // or just the first suggestion
+        return suggestionsList.first['recommendation'].toString();
+      }
+    }
+
     final r = cnRatio;
     if (r == 0) return '';
     if (r < 25) return 'Add carbon-rich ingredients';
@@ -190,8 +254,9 @@ class CreateMixController extends ChangeNotifier {
     }
   }
 
-  void clearSelectedIngredients() {
-    _selected.clear();
-    notifyListeners();
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    super.dispose();
   }
 }
