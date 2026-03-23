@@ -285,7 +285,7 @@ class _PileDetailsScreenState extends State<PileDetailsScreen> {
                 contentPadding: EdgeInsets.zero,
                 title: Text(ingredient.ingredientName),
                 trailing: Text(
-                  'x${ingredient.quantity}',
+                  'x${ingredient.quantity.toStringAsFixed(ingredient.quantity.truncateToDouble() == ingredient.quantity ? 0 : 2)}',
                   style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
               ),

@@ -115,7 +115,7 @@ class ReviewScreen extends StatelessWidget {
                                         ),
                                       ),
                                       Text(
-                                        'x$quantity',
+                                        'x${quantity.toStringAsFixed(quantity.truncateToDouble() == quantity ? 0 : 2)}',
                                         style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
                                       ),
                                     ],

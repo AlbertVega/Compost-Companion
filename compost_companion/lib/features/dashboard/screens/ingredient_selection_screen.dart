@@ -171,12 +171,60 @@ class _IngredientSelectionScreenState extends State<IngredientSelectionScreen> {
                                     children: [
                                       IconButton(
                                         icon: const Icon(Icons.remove),
-                                        onPressed: () => _ctrl.changeQuantity(ing, -1),
+                                        onPressed: () => _ctrl.changeQuantity(ing, -1.0),
                                       ),
-                                      Text(qty.toString()),
+                                      GestureDetector(
+                                        onTap: () async {
+                                          final controller = TextEditingController(text: qty.toStringAsFixed(qty.truncateToDouble() == qty ? 0 : 2));
+                                          final result = await showDialog<double>(
+                                            context: context,
+                                            builder: (ctx) => AlertDialog(
+                                              title: Text('Edit Quantity for ${ing.name}'),
+                                              content: TextField(
+                                                controller: controller,
+                                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                                decoration: const InputDecoration(
+                                                  hintText: 'Enter quantity (e.g., 12.50)',
+                                                ),
+                                                autofocus: true,
+                                                onSubmitted: (val) {
+                                                  final valDouble = double.tryParse(val);
+                                                  Navigator.pop(ctx, valDouble);
+                                                },
+                                              ),
+                                              actions: [
+                                                TextButton(
+                                                  onPressed: () => Navigator.pop(ctx),
+                                                  child: const Text('Cancel'),
+                                                ),
+                                                TextButton(
+                                                  onPressed: () {
+                                                    final valDouble = double.tryParse(controller.text);
+                                                    Navigator.pop(ctx, valDouble);
+                                                  },
+                                                  child: const Text('Save'),
+                                                ),
+                                              ],
+                                            ),
+                                          );
+                                          if (result != null && result > 0) {
+                                            _ctrl.setQuantity(ing, double.parse(result.toStringAsFixed(2)));
+                                          } else if (result != null && result <= 0) {
+                                            _ctrl.setQuantity(ing, 0); // removes it
+                                          }
+                                        },
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            border: Border.all(color: Colors.grey.shade400),
+                                            borderRadius: BorderRadius.circular(4),
+                                          ),
+                                          child: Text(qty.toStringAsFixed(qty.truncateToDouble() == qty ? 0 : 2)),
+                                        ),
+                                      ),
                                       IconButton(
                                         icon: const Icon(Icons.add),
-                                        onPressed: () => _ctrl.changeQuantity(ing, 1),
+                                        onPressed: () => _ctrl.changeQuantity(ing, 1.0),
                                       ),
                                     ],
                                   ),

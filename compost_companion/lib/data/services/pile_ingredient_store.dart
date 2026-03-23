@@ -9,7 +9,7 @@ class PileIngredientStore {
 
   final Map<int, List<PileIngredientSelection>> _ingredientsByPileId = {};
 
-  void savePileIngredients(int pileId, Map<String, int> ingredientSummary) {
+  void savePileIngredients(int pileId, Map<String, double> ingredientSummary) {
     final selections = ingredientSummary.entries
         .where((entry) => entry.value > 0)
         .map(

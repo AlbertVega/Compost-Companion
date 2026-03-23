@@ -274,12 +274,63 @@ class _CreateScreenState extends State<CreateScreen> {
                   ),
                 ),
                 IconButton(
-                  onPressed: () => _controller.changeQuantity(ingredient, -1),
+                  onPressed: () => _controller.changeQuantity(ingredient, -1.0),
                   icon: const Icon(Icons.remove_circle_outline, size: 20),
                 ),
-                Text(quantity.toString(), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                GestureDetector(
+                  onTap: () async {
+                    final textController = TextEditingController(text: quantity.toStringAsFixed(quantity.truncateToDouble() == quantity ? 0 : 2));
+                    final result = await showDialog<double>(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        title: Text('Edit Quantity for ${ingredient.name}'),
+                        content: TextField(
+                          controller: textController,
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          decoration: const InputDecoration(
+                            hintText: 'Enter quantity (e.g., 12.50)',
+                          ),
+                          autofocus: true,
+                          onSubmitted: (val) {
+                            final valDouble = double.tryParse(val);
+                            Navigator.pop(ctx, valDouble);
+                          },
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx),
+                            child: const Text('Cancel'),
+                          ),
+                          TextButton(
+                            onPressed: () {
+                              final valDouble = double.tryParse(textController.text);
+                              Navigator.pop(ctx, valDouble);
+                            },
+                            child: const Text('Save'),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (result != null && result > 0) {
+                      _controller.setQuantity(ingredient, double.parse(result.toStringAsFixed(2)));
+                    } else if (result != null && result <= 0) {
+                      _controller.setQuantity(ingredient, 0); // removes it
+                    }
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey.shade300),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      quantity.toStringAsFixed(quantity.truncateToDouble() == quantity ? 0 : 2),
+                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ),
                 IconButton(
-                  onPressed: () => _controller.changeQuantity(ingredient, 1),
+                  onPressed: () => _controller.changeQuantity(ingredient, 1.0),
                   icon: const Icon(Icons.add_circle_outline, size: 20),
                 ),
                 IconButton(

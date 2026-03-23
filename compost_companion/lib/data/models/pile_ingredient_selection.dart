@@ -1,6 +1,6 @@
 class PileIngredientSelection {
   final String ingredientName;
-  final int quantity;
+  final double quantity;
 
   const PileIngredientSelection({
     required this.ingredientName,

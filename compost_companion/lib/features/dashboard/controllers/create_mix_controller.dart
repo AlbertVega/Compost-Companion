@@ -17,16 +17,16 @@ class CreateMixController extends ChangeNotifier {
   List<Ingredient> allIngredients = [];
   List<CompostPile> existingPiles = [];
   /// map ingredient -> quantity
-  final Map<Ingredient, int> _selected = {};
+  final Map<Ingredient, double> _selected = {};
 
   Map<String, dynamic>? expertEvaluation;
   bool evaluating = false;
   Timer? _debounce;
 
-  Map<Ingredient, int> get selected => Map.unmodifiable(_selected);
+  Map<Ingredient, double> get selected => Map.unmodifiable(_selected);
 
-  Map<String, int> get selectedIngredientSummary {
-    final Map<String, int> summary = {};
+  Map<String, double> get selectedIngredientSummary {
+    final Map<String, double> summary = {};
     _selected.forEach((ingredient, quantity) {
       summary[ingredient.name] = quantity;
     });
@@ -61,9 +61,9 @@ class CreateMixController extends ChangeNotifier {
 
   void addIngredient(Ingredient ing) {
     if (_selected.containsKey(ing)) {
-      _selected[ing] = _selected[ing]! + 1;
+      _selected[ing] = _selected[ing]! + 1.0;
     } else {
-      _selected[ing] = 1;
+      _selected[ing] = 1.0;
     }
     _triggerEvaluation();
     notifyListeners();
@@ -88,7 +88,17 @@ class CreateMixController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void changeQuantity(Ingredient ing, int delta) {
+  void setQuantity(Ingredient ing, double qty) {
+    if (qty <= 0) {
+      _selected.remove(ing);
+    } else {
+      _selected[ing] = qty;
+    }
+    _triggerEvaluation();
+    notifyListeners();
+  }
+
+  void changeQuantity(Ingredient ing, double delta) {
     if (!_selected.containsKey(ing)) return;
     final newQty = _selected[ing]! + delta;
     if (newQty <= 0) {
@@ -158,7 +168,7 @@ class CreateMixController extends ChangeNotifier {
       return (expertEvaluation!['calculated_moisture_percent'] as num).toDouble();
     }
     double totalMoisture = 0;
-    int totalQty = 0;
+    double totalQty = 0;
     _selected.forEach((ing, qty) {
       totalMoisture += (ing.moistureContent ?? 0) * qty;
       totalQty += qty;
@@ -167,11 +177,11 @@ class CreateMixController extends ChangeNotifier {
   }
 
   double get totalVolume {
-    int totalQty = 0;
+    double totalQty = 0;
     _selected.forEach((_, qty) {
       totalQty += qty;
     });
-    return totalQty.toDouble();
+    return totalQty;
   }
 
   double get cnRatio {

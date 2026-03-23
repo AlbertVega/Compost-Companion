@@ -172,12 +172,12 @@ class CompostService {
     throw Exception(message);
   }
 
-  Future<Map<String, dynamic>> evaluateRecipe(Map<Ingredient, int> selectedMap, List<Ingredient> availableList) async {
+  Future<Map<String, dynamic>> evaluateRecipe(Map<Ingredient, double> selectedMap, List<Ingredient> availableList) async {
     final uri = Uri.parse('$baseUrl/evaluate-recipe');
 
     final selectedJson = selectedMap.entries.map((entry) => {
       'name': entry.key.name,
-      'weight_kg': entry.value.toDouble(),
+      'weight_kg': entry.value,
       'moisture_content': entry.key.moistureContent ?? 0.0,
       'nitrogen_content': entry.key.nitrogenContent ?? 0.0,
       'carbon_content': entry.key.carbonContent ?? 0.0,
