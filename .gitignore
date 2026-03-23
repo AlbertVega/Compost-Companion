@@ -10,8 +10,6 @@ env/
 
 # Environment files (keep template tracked)
 .env
-.env
-!.env
 
 # Tooling/cache
 .pytest_cache/
