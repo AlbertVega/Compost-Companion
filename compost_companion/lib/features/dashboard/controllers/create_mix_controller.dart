@@ -199,6 +199,20 @@ class CreateMixController extends ChangeNotifier {
   }
 
   String get ratioStatus {
+    if (expertEvaluation != null && expertEvaluation!['suggestions'] != null) {
+      final suggestionsList = expertEvaluation!['suggestions'] as List;
+      if (suggestionsList.isNotEmpty) {
+        // Encontrar la sugerencia con mayor severidad
+        bool hasHigh = suggestionsList.any((s) => s['severity'] == 'high');
+        bool hasMedium = suggestionsList.any((s) => s['severity'] == 'medium');
+        
+        if (hasHigh) return 'Bad';
+        if (hasMedium) return 'Acceptable';
+        return 'Good';
+      }
+    }
+
+    // Fallback manual si no hay evaluación del servidor aún
     final r = cnRatio;
     if (r == 0) return '—';
     if (r >= 25 && r <= 30) return 'Good';

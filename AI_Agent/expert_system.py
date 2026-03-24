@@ -20,8 +20,13 @@ class CompostExpertSystem:
         # optimal ranges (literature ideal)
         self.min_cn_ratio = 25.0
         self.max_cn_ratio = 30.0
-        self.min_moisture = 40.0
+        self.min_moisture = 45.0
         self.max_moisture = 50.0
+        self.acceptable_cn_low = 15.0
+        self.acceptable_cn_high = 35.0
+        self.acceptable_moisture_low = 40.0
+        self.acceptable_moisture_high = 65.0
+        self.min_quantity_ingredient = 0.01 
 
     def calculate_required_weight_for_cn(self, target_cn: float, current_carbon_kg: float, current_nitrogen_kg: float, ingredient: RecipeIngredient) -> float:
         """
@@ -107,7 +112,7 @@ class CompostExpertSystem:
         
         # 1. evaluate C/N Ratio
         if cn_ratio < self.min_cn_ratio:
-            is_acceptable = cn_ratio >= 15.0
+            is_acceptable = cn_ratio >= self.acceptable_cn_low
             severity = "medium" if is_acceptable else "high"
             issue_text = f"C/N Ratio is acceptable but low ({cn_ratio:.1f}:1)" if is_acceptable else f"C/N Ratio is too low ({cn_ratio:.1f}:1)"
             recommendation = "Your mix has too much nitrogen. Add more 'browns' (carbon-rich materials)."
@@ -119,10 +124,13 @@ class CompostExpertSystem:
                         options.append((db_ing.name, w))
                 if options:
                     options.sort(key=lambda x: x[1])  # sort by least amount needed
+                    # Filter out options that are practically 0 (< min_quantity_ingredient)
+                    options = [opt for opt in options if opt[1] >= self.min_quantity_ingredient]
                     top_3 = options[:3]
-                    sug_text = " or ".join([f"{w:.1f} kg of {name}" for name, w in top_3])
-                    prefix = "Your C/N ratio is acceptable but could be improved." if is_acceptable else "Your C/N ratio is too low."
-                    recommendation = f"{prefix} Add {sug_text} to balance it to the optimal range."
+                    if top_3:
+                        sug_text = " or ".join([f"{w:.2f} kg of {name}" for name, w in top_3])
+                        prefix = "Your C/N ratio is acceptable but could be improved." if is_acceptable else "Your C/N ratio is too low."
+                        recommendation = f"{prefix} Add {sug_text} to balance it to the optimal range."
             
             suggestions.append(ExpertSuggestion(
                 issue=issue_text,
@@ -130,7 +138,7 @@ class CompostExpertSystem:
                 severity=severity
             ))
         elif cn_ratio > self.max_cn_ratio:
-            is_acceptable = cn_ratio <= 35.0
+            is_acceptable = cn_ratio <= self.acceptable_cn_high
             severity = "medium" if is_acceptable else "high"
             issue_text = f"C/N Ratio is acceptable but high ({cn_ratio:.1f}:1)" if is_acceptable else f"C/N Ratio is too high ({cn_ratio:.1f}:1)"
             recommendation = "Your mix has too much carbon. Add more 'greens' (nitrogen-rich materials)."
@@ -142,10 +150,12 @@ class CompostExpertSystem:
                         options.append((db_ing.name, w))
                 if options:
                     options.sort(key=lambda x: x[1])
+                    options = [opt for opt in options if opt[1] >= self.min_quantity_ingredient]
                     top_3 = options[:3]
-                    sug_text = " or ".join([f"{w:.1f} kg of {name}" for name, w in top_3])
-                    prefix = "Your C/N ratio is acceptable but could be improved." if is_acceptable else "Your C/N ratio is too high."
-                    recommendation = f"{prefix} Add {sug_text} to balance it to the optimal range."
+                    if top_3:
+                        sug_text = " or ".join([f"{w:.2f} kg of {name}" for name, w in top_3])
+                        prefix = "Your C/N ratio is acceptable but could be improved." if is_acceptable else "Your C/N ratio is too high."
+                        recommendation = f"{prefix} Add {sug_text} to balance it to the optimal range."
 
             suggestions.append(ExpertSuggestion(
                 issue=issue_text,
@@ -155,7 +165,11 @@ class CompostExpertSystem:
 
         # 2. evaluate Moisture Level
         if system_moisture < self.min_moisture:
-            recommendation = "Your mix is too dry, which stops the composting process. Mix in more wet ingredients (greens)."
+            is_acceptable = system_moisture >= self.acceptable_moisture_low
+            severity = "medium" if is_acceptable else "high"
+            issue_text = f"Moisture is acceptable but low ({system_moisture:.1f}%)" if is_acceptable else f"Moisture is too low ({system_moisture:.1f}%)"
+            recommendation = "Your mix is getting dry. Mix in more wet ingredients (greens)."
+            
             if available_ingredients:
                 options = []
                 for db_ing in available_ingredients:
@@ -164,17 +178,24 @@ class CompostExpertSystem:
                         options.append((db_ing.name, w))
                 if options:
                     options.sort(key=lambda x: x[1])
+                    options = [opt for opt in options if opt[1] >= self.min_quantity_ingredient]
                     top_3 = options[:3]
-                    sug_text = " or ".join([f"{w:.1f} kg of {name}" for name, w in top_3])
-                    recommendation = f"To raise the moisture to {self.min_moisture}%, I suggest adding: {sug_text}."
+                    if top_3:
+                        sug_text = " or ".join([f"{w:.2f} kg of {name}" for name, w in top_3])
+                        prefix = "Your moisture level is acceptable but leaning dry." if is_acceptable else "Your mix is too dry, which stops the composting process."
+                        recommendation = f"{prefix} To raise the moisture to {self.min_moisture}%, I suggest adding: {sug_text}."
 
             suggestions.append(ExpertSuggestion(
-                issue=f"Moisture is too low ({system_moisture:.1f}%)",
+                issue=issue_text,
                 recommendation=recommendation,
-                severity="medium"
+                severity=severity
             ))
         elif system_moisture > self.max_moisture:
-            recommendation = "Your mix is too wet, which can cause foul odors. Mix in dry, bulky 'browns'."
+            is_acceptable = system_moisture <= self.acceptable_moisture_high
+            severity = "medium" if is_acceptable else "high"
+            issue_text = f"Moisture is acceptable but high ({system_moisture:.1f}%)" if is_acceptable else f"Moisture is too high ({system_moisture:.1f}%)"
+            recommendation = "Your mix is leaning wet. Mix in dry, bulky 'browns'."
+            
             if available_ingredients:
                 options = []
                 for db_ing in available_ingredients:
@@ -183,14 +204,17 @@ class CompostExpertSystem:
                         options.append((db_ing.name, w))
                 if options:
                     options.sort(key=lambda x: x[1])
+                    options = [opt for opt in options if opt[1] >= self.min_quantity_ingredient]
                     top_3 = options[:3]
-                    sug_text = " or ".join([f"{w:.1f} kg of {name}" for name, w in top_3])
-                    recommendation = f"To lower the moisture to {self.max_moisture}%, I suggest adding: {sug_text}."
+                    if top_3:
+                        sug_text = " or ".join([f"{w:.2f} kg of {name}" for name, w in top_3])
+                        prefix = "Your moisture level is acceptable but leaning wet." if is_acceptable else "Your mix is too wet, which can cause foul odors."
+                        recommendation = f"{prefix} To lower the moisture to {self.max_moisture}%, I suggest adding: {sug_text}."
 
             suggestions.append(ExpertSuggestion(
-                issue=f"Moisture is too high ({system_moisture:.1f}%)",
+                issue=issue_text,
                 recommendation=recommendation,
-                severity="medium"
+                severity=severity
             ))
 
         # check if recipe is optimal (no suggestions means it's within all optimal ranges)
