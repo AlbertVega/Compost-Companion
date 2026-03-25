@@ -219,7 +219,7 @@ class _IngredientSelectionScreenState extends State<IngredientSelectionScreen> {
                                             border: Border.all(color: Colors.grey.shade400),
                                             borderRadius: BorderRadius.circular(4),
                                           ),
-                                          child: Text(qty.toStringAsFixed(qty.truncateToDouble() == qty ? 0 : 2)),
+                                          child: Text('${qty.toStringAsFixed(qty.truncateToDouble() == qty ? 0 : 2)} kg'),
                                         ),
                                       ),
                                       IconButton(
@@ -245,8 +245,9 @@ class _IngredientSelectionScreenState extends State<IngredientSelectionScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Total C: ${_ctrl.totalCarbon.toStringAsFixed(2)}'),
-                      Text('Total N: ${_ctrl.totalNitrogen.toStringAsFixed(2)}'),
+                      Text('Total C: ${_ctrl.totalCarbon.toStringAsFixed(2)} kg'),
+                      Text('Total N: ${_ctrl.totalNitrogen.toStringAsFixed(2)} kg'),
+                      Text('Total Weight: ${_ctrl.totalVolume.toStringAsFixed(2)} kg'),
                       Text('Moisture: ${_ctrl.moisture.toStringAsFixed(2)}%'),
                       Row(
                         children: [

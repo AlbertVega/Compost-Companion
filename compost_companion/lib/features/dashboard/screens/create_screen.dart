@@ -225,7 +225,7 @@ class _CreateScreenState extends State<CreateScreen> {
                   dense: true,
                   title: Text(ingredient.name),
                   subtitle: Text(
-                    'C: ${ (ingredient.carbonContent ?? 0).toStringAsFixed(2) }  N: ${ (ingredient.nitrogenContent ?? 0).toStringAsFixed(2) }',
+                    'C: ${(ingredient.carbonContent ?? 0).toStringAsFixed(2)}%  N: ${(ingredient.nitrogenContent ?? 0).toStringAsFixed(2)}%',
                     style: const TextStyle(fontSize: 12),
                   ),
                   onTap: () => _onIngredientSelected(ingredient),
@@ -324,7 +324,7 @@ class _CreateScreenState extends State<CreateScreen> {
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
-                      quantity.toStringAsFixed(quantity.truncateToDouble() == quantity ? 0 : 2),
+                      '${quantity.toStringAsFixed(quantity.truncateToDouble() == quantity ? 0 : 2)} kg',
                       style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
                     ),
                   ),
@@ -402,6 +402,14 @@ class _CreateScreenState extends State<CreateScreen> {
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Total Weight', style: TextStyle(fontSize: 14)),
+              Text('${_controller.totalVolume.toStringAsFixed(2)} kg', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+            ],
+          ),
+          const SizedBox(height: 6),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -513,14 +521,14 @@ class _CreateScreenState extends State<CreateScreen> {
                   title: 'Carbon Content',
                   tag: 'Green',
                   tagColor: const Color(0xFF2F6F4E),
-                  value: _controller.totalCarbon.toStringAsFixed(2),
+                  value: '${_controller.totalCarbon.toStringAsFixed(2)} kg',
                 ),
                 const SizedBox(height: 10),
                 _buildNutrientCard(
                   title: 'Nitrogen Content',
                   tag: 'Brown',
                   tagColor: const Color(0xFFD68D18),
-                  value: _controller.totalNitrogen.toStringAsFixed(2),
+                  value: '${_controller.totalNitrogen.toStringAsFixed(2)} kg',
                 ),
                 const SizedBox(height: 10),
                 _buildEstimatesCard(),
