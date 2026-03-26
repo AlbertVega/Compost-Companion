@@ -171,6 +171,34 @@ class CompostService {
     } catch (_) {}
     throw Exception(message);
   }
+  Future<void> deleteCompostPile(int pileId) async {
+    final token = _auth.currentToken?.accessToken;
+    if (token == null) {
+      throw Exception('No authentication token available');
+    }
+
+    final uri = Uri.parse('$baseUrl/compost-piles/$pileId');
+    final resp = await http.delete(
+      uri,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    ).timeout(const Duration(seconds: 10));
+
+    if (resp.statusCode == 200 || resp.statusCode == 204) {
+      return;
+    }
+
+    String message = 'Failed to delete compost pile';
+    try {
+      final decoded = jsonDecode(resp.body);
+      if (decoded is Map && decoded['detail'] != null) {
+        message = decoded['detail'].toString();
+      }
+    } catch (_) {}
+    throw Exception(message);
+  }
 
   Future<Map<String, dynamic>> evaluateRecipe(Map<Ingredient, double> selectedMap, List<Ingredient> availableList) async {
     final uri = Uri.parse('$baseUrl/evaluate-recipe');

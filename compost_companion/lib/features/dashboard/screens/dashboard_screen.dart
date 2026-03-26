@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:compost_companion/data/models/dashboard_pile.dart';
 import 'package:compost_companion/data/services/compost_service.dart';
+import 'package:compost_companion/data/services/pile_ingredient_store.dart';
 import 'package:compost_companion/features/dashboard/widgets/compost_pile_card.dart';
 import 'notification_screen.dart';
 import 'pile_details_screen.dart';
@@ -16,11 +17,75 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> {
   late Future<List<DashboardPile>> _futurePiles;
   final _service = CompostService();
+  final _pileIngredientStore = PileIngredientStore();
+  final Set<int> _deletingPileIds = <int>{};
 
   @override
   void initState() {
     super.initState();
     _futurePiles = _service.fetchDashboardData();
+  }
+  void _refreshPiles() {
+    setState(() {
+      _futurePiles = _service.fetchDashboardData();
+    });
+  }
+
+  Future<void> _confirmAndDeletePile(DashboardPile pile) async {
+    final confirmDelete = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Delete pile?'),
+          content: Text('Are you sure you want to delete "${pile.name}"? This cannot be undone.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: const Color(0xFFDB181B)),
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Delete'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmDelete != true || !mounted) {
+      return;
+    }
+
+    setState(() {
+      _deletingPileIds.add(pile.id);
+    });
+
+    try {
+      await _service.deleteCompostPile(pile.id);
+      await _pileIngredientStore.deletePileIngredients(pile.id);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Deleted "${pile.name}"'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      _refreshPiles();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to delete pile: ${e.toString().replaceFirst('Exception: ', '')}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (!mounted) return;
+      setState(() {
+        _deletingPileIds.remove(pile.id);
+      });
+    }
   }
 
   @override
@@ -62,6 +127,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         for (int i = 0; i < piles.length; i++) ...[
                           CompostPileCard(
                             pile: piles[i],
+                            deleteInProgress: _deletingPileIds.contains(piles[i].id),
+                            onDelete: () => _confirmAndDeletePile(piles[i]),
                             onTap: () {
                               Navigator.push(
                                 context,
