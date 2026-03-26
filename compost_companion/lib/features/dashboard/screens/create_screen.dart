@@ -441,7 +441,7 @@ class _CreateScreenState extends State<CreateScreen> {
                       behavior: HitTestBehavior.opaque,
                       child: Row(
                         children: [
-                          SvgPicture.asset('assets/75-206;54626-27715.svg', width: 24, height: 22),
+                          SvgPicture.asset('assets/I75-206;54626-27715.svg', width: 24, height: 22),
                           const SizedBox(width: 4),
                           const Text(
                             'Add ingredient',

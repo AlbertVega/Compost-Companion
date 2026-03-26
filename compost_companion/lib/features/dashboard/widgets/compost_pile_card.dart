@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import 'package:compost_companion/data/models/dashboard_pile.dart';
+import 'package:compost_companion/features/dashboard/screens/connect_device_screen.dart';
 
 class CompostPileCard extends StatelessWidget {
   final DashboardPile pile;
@@ -109,6 +110,30 @@ class CompostPileCard extends StatelessWidget {
                 ),
               ] else ...[
                 const Text('No data yet', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.orange,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Text('Needs Device', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
+                    ),
+                    ElevatedButton(
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => ConnectDeviceScreen(pileId: pile.id),
+                          ),
+                        );
+                      },
+                      child: const Text('Connect'),
+                    ),
+                  ],
+                ),
               ],
               const SizedBox(height: 12),
               Align(
