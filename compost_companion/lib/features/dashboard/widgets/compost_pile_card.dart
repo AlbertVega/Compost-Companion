@@ -2,12 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import 'package:compost_companion/data/models/dashboard_pile.dart';
+import 'package:compost_companion/features/dashboard/screens/connect_device_screen.dart';
 
 class CompostPileCard extends StatelessWidget {
   final DashboardPile pile;
   final VoidCallback? onTap;
+  final VoidCallback? onDelete;
+  final bool deleteInProgress;
 
-  const CompostPileCard({super.key, required this.pile, this.onTap});
+  const CompostPileCard({
+    super.key,
+    required this.pile,
+    this.onTap,
+    this.onDelete,
+    this.deleteInProgress = false,
+  });
 
   // colour based strictly on the status string returned by the server.
   // if the database didn't supply one we fall back to grey.
@@ -109,25 +118,73 @@ class CompostPileCard extends StatelessWidget {
                 ),
               ] else ...[
                 const Text('No data yet', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.orange,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Text('Needs Device', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
+                    ),
+                    ElevatedButton(
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => ConnectDeviceScreen(pileId: pile.id),
+                          ),
+                        );
+                      },
+                      child: const Text('Connect'),
+                    ),
+                  ],
+                ),
               ],
               const SizedBox(height: 12),
-              Align(
-                alignment: Alignment.centerRight,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: _statusColor,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: const Text(
-                    'View Details',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: deleteInProgress ? null : onDelete,
+                    icon: deleteInProgress
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.delete_outline, size: 16),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Color(0xFFDB181B)),
+                      foregroundColor: const Color(0xFFDB181B),
+                    ),
+                    label: const Text(
+                      'Delete',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
-                ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: _statusColor,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Text(
+                      'View Details',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

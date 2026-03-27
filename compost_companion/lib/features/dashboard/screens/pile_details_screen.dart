@@ -22,6 +22,7 @@ class _PileDetailsScreenState extends State<PileDetailsScreen> {
   String? _error;
   bool _loading = true;
   final PileIngredientStore _pileIngredientStore = PileIngredientStore();
+  List<PileIngredientSelection> _selectedIngredients = const [];
 
   @override
   void initState() {
@@ -36,8 +37,10 @@ class _PileDetailsScreenState extends State<PileDetailsScreen> {
     });
     try {
       final r = await _service.fetchLatestHealthRecord(widget.pileId);
+      final storedIngredients = await _pileIngredientStore.getPileIngredients(widget.pileId);
       setState(() {
         _record = r;
+        _selectedIngredients = storedIngredients;
       });
     } catch (e) {
       setState(() {
@@ -265,8 +268,7 @@ class _PileDetailsScreenState extends State<PileDetailsScreen> {
   }
 
   Widget _buildIngredientsCard() {
-    final List<PileIngredientSelection> selectedIngredients =
-    _pileIngredientStore.getPileIngredients(widget.pileId);
+    final selectedIngredients = _selectedIngredients;
 
     return Container(
       padding: const EdgeInsets.all(12),

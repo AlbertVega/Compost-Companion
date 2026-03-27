@@ -235,6 +235,29 @@ def get_compost_pile(
     
     return pile
 
+@app.delete("/compost-piles/{pile_id}", status_code=204)
+def delete_compost_pile(
+        pile_id: int,
+        current_user: User = Depends(get_current_user),
+        db: Session = Depends(get_db),
+):
+    """Delete a specific compost pile by ID"""
+    pile = db.query(CompostPile).filter(
+        CompostPile.pile_id == pile_id,
+        CompostPile.username == current_user.username
+    ).first()
+
+    if not pile:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Compost pile {pile_id} not found"
+        )
+
+    db.delete(pile)
+    db.commit()
+    return None
+
+
 
 # ============================================================================
 # HEALTH RECORD ENDPOINTS

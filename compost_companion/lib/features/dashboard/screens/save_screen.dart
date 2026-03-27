@@ -55,7 +55,7 @@ class _SaveScreenState extends State<SaveScreen> {
           mixName: mixName,
           location: _locationController.text.trim().isEmpty ? 'Not specified' : _locationController.text.trim(),
         );
-        _pileIngredientStore.savePileIngredients(
+        await _pileIngredientStore.savePileIngredients(
           createdPile.id,
           widget.controller.selectedIngredientSummary,
         );
@@ -91,7 +91,7 @@ class _SaveScreenState extends State<SaveScreen> {
     }
 
     if (!mounted) return;
-    _pileIngredientStore.savePileIngredients(
+    await _pileIngredientStore.savePileIngredients(
       _selectedExistingPileId!,
       widget.controller.selectedIngredientSummary,
     );
