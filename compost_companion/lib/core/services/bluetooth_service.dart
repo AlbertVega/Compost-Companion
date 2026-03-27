@@ -3,6 +3,22 @@ import 'dart:convert';
 
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 
+class ScannedDevice {
+  final BluetoothDevice device;
+  final String displayName;
+  final String id;
+  final int rssi;
+  final Map<int, List<int>> manufacturerData;
+
+  ScannedDevice({
+    required this.device,
+    required this.displayName,
+    required this.id,
+    required this.rssi,
+    required this.manufacturerData,
+  });
+}
+
 class BluetoothService {
   static final BluetoothService _instance = BluetoothService._internal();
   factory BluetoothService() => _instance;
@@ -66,11 +82,11 @@ class BluetoothService {
 
   /// Scans for BLE devices and returns the unique list.
   /// If [nameKeyword] is provided, only devices whose name contains it are returned.
-  Future<List<BluetoothDevice>> scanDevices({
+  Future<List<ScannedDevice>> scanDevices({
     Duration timeout = const Duration(seconds: 6),
     String? nameKeyword,
   }) async {
-    final Map<String, BluetoothDevice> byId = {};
+    final Map<String, ScannedDevice> byId = {};
     StreamSubscription? sub;
     try {
       try {
@@ -81,11 +97,23 @@ class BluetoothService {
 
       sub = FlutterBluePlus.scanResults.listen((results) {
         for (final r in results) {
-          final name = r.device.name;
+          final adv = r.advertisementData;
+          final localName = (adv.localName ?? '').trim();
+          final deviceName = (r.device.name ?? '').trim();
+          final display = localName.isNotEmpty
+              ? localName
+              : (deviceName.isNotEmpty ? deviceName : r.device.remoteId.str);
           if (nameKeyword != null && nameKeyword.isNotEmpty) {
-            if (!name.toLowerCase().contains(nameKeyword.toLowerCase())) continue;
+            if (!display.toLowerCase().contains(nameKeyword.toLowerCase())) continue;
           }
-          byId[r.device.remoteId.str] = r.device;
+
+          byId[r.device.remoteId.str] = ScannedDevice(
+            device: r.device,
+            displayName: display,
+            id: r.device.remoteId.str,
+            rssi: r.rssi,
+            manufacturerData: adv.manufacturerData ?? {},
+          );
         }
       });
 

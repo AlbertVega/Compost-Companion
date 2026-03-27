@@ -1,11 +1,11 @@
-import 'dart:io';
-
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:permission_handler/permission_handler.dart';
 
 class BluetoothPermissionService {
+  /// Request Bluetooth permissions where applicable.
+  /// On web and non-Android platforms returns true immediately.
   Future<bool> requestBluetoothPermissions() async {
-    // Non-Android platforms generally don't need these runtime permissions.
-    if (!Platform.isAndroid) return true;
+    if (kIsWeb) return true;
 
     final scan = await Permission.bluetoothScan.request();
     final connect = await Permission.bluetoothConnect.request();
@@ -23,7 +23,7 @@ class BluetoothPermissionService {
   }
 
   Future<bool> isPermanentlyDenied() async {
-    if (!Platform.isAndroid) return false;
+    if (kIsWeb) return false;
     final scanDenied = await Permission.bluetoothScan.isPermanentlyDenied;
     final locDenied = await Permission.location.isPermanentlyDenied;
     return scanDenied || locDenied;
@@ -34,7 +34,7 @@ class BluetoothPermissionService {
   }
 
   Future<bool> hasAllRequired() async {
-    if (!Platform.isAndroid) return true;
+    if (kIsWeb) return true;
     final scan = await Permission.bluetoothScan.status;
     final connect = await Permission.bluetoothConnect.status;
     final location = await Permission.location.status;
