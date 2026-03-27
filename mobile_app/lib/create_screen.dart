@@ -107,7 +107,7 @@ class CreateScreen extends StatelessWidget {
                     behavior: HitTestBehavior.opaque,
                     child: Row(
                       children: [
-                        SvgPicture.asset('assets/75-206;54626-27715.svg', width: 27, height: 24),
+                        SvgPicture.asset('assets/I75-206;54626-27715.svg', width: 27, height: 24),
                         const SizedBox(width: 5),
                         const Text('Add ingredient', style: TextStyle(color: Color(0xFF2F6F4E), fontSize: 10, fontWeight: FontWeight.w600)),
                       ],

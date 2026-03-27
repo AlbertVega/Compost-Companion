@@ -39,6 +39,7 @@ class _ConnectDeviceScreenState extends State<ConnectDeviceScreen> {
     'Demo-Device',
   ];
   List<String> _devices = [];
+  List<ScannedDevice> _scannedDevices = [];
   BluetoothDevice? _selectedBleDevice;
   String? _selectedDeviceName;
 
@@ -105,26 +106,31 @@ class _ConnectDeviceScreenState extends State<ConnectDeviceScreen> {
     try {
       // Optional BLE scan. If empty or fails, fall back to mockDevices.
       final scanned = await _bt.scanDevices(timeout: const Duration(seconds: 4));
-      final names = scanned
-          .map((d) => d.name)
-          .where((n) => n.trim().isNotEmpty)
-          .toSet()
+
+      // Build display labels using displayName and a short id fallback.
+      final labels = scanned
+          .map((d) {
+            final shortId = d.id.contains(':') ? d.id.split(':').last : d.id;
+            return d.displayName.isNotEmpty ? '${d.displayName} ($shortId)' : d.id;
+          })
           .toList();
-      names.sort();
+      labels.sort();
 
       setState(() {
-        _devices = names.isNotEmpty ? names : List<String>.from(mockDevices);
+        _scannedDevices = scanned;
+        _devices = labels.isNotEmpty ? labels : List<String>.from(mockDevices);
         _busy = false;
       });
     } catch (_) {
       setState(() {
+        _scannedDevices = [];
         _devices = List<String>.from(mockDevices);
         _busy = false;
       });
     }
   }
-
-  Future<void> _selectDevice(String name) async {
+  Future<void> _selectDeviceByIndex(int index) async {
+    final name = _devices[index];
     setState(() {
       _selectedDeviceName = name;
       _state = ConnectState.deviceSelected;
@@ -132,19 +138,20 @@ class _ConnectDeviceScreenState extends State<ConnectDeviceScreen> {
       _busy = false;
     });
 
-    // Try to bind to a real BLE device if we can find it.
-    // If not, we still proceed with mock WiFi scan.
+    // Try to bind to a real BLE device if we have a scanned match.
     try {
-      final scanned = await _bt.scanDevices(timeout: const Duration(seconds: 2));
-      final match = scanned.where((d) => d.name == name).toList();
-      if (match.isNotEmpty) {
-        _selectedBleDevice = match.first;
+      if (index < _scannedDevices.length) {
+        final entry = _scannedDevices[index];
+        final device = entry.device;
+        _selectedBleDevice = device;
         _bt.selectDevice(_selectedBleDevice!);
         final ok = await _bt.connect();
         if (!ok) {
           // Keep flow usable even if BLE connect fails.
           _selectedBleDevice = null;
         }
+      } else {
+        _selectedBleDevice = null;
       }
     } catch (_) {
       _selectedBleDevice = null;
@@ -360,7 +367,7 @@ class _ConnectDeviceScreenState extends State<ConnectDeviceScreen> {
                           final name = _devices[i];
                           return ListTile(
                             title: Text(name),
-                            onTap: _busy ? null : () => _selectDevice(name),
+                            onTap: _busy ? null : () => _selectDeviceByIndex(i),
                           );
                         },
                       ),
