@@ -23,7 +23,8 @@ static const float RH_HI   = 75.0;
 static const float RH_LO   = 35.0;
 
 //static const char* BASE_URL = "http://192.168.1.10:8001";
-static const char* BASE_URL = "http://192.168.18.2:8001";
+//static const char* BASE_URL = "http://192.168.18.2:8001";
+static const char* BASE_URL = "http://20.186.57.186:8000";
 static const int PILE_ID = 1;
 static const char* BLE_DEVICE_NAME = "CompostMonitor";
 
