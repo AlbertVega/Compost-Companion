@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
-
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
 import 'package:compost_companion/data/models/user_create.dart';
 import 'package:compost_companion/data/models/token_response.dart';
@@ -18,13 +18,25 @@ class AuthService {
 
   TokenResponse? _token;
 
-  factory AuthService({String baseUrl = 'http://127.0.0.1:8000'}) {
-    _instance.baseUrl = baseUrl;
+  factory AuthService({String? baseUrl}) {
+    if (baseUrl != null) {
+      _instance.baseUrl = baseUrl;
+    }
     return _instance;
   }
 
   AuthService._internal() {
-    baseUrl = 'http://127.0.0.1:8000';
+    _initBaseUrl();
+  }
+
+  void _initBaseUrl() {
+    if (kIsWeb) {
+      baseUrl = 'http://127.0.0.1:8000';
+    } else {
+      // Para Android Emulators. 
+      // (Si después compilas a un dispositivo físico, aquí pondrás la IP de tu PC en la red local ej. 192.168.1.XX)
+      baseUrl = 'http://10.0.2.2:8000'; 
+    }
   }
 
   TokenResponse? get currentToken => _token;

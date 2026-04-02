@@ -66,3 +66,15 @@ class Notification(Base):
     priority = Column(SmallInteger, default=5)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     read_on = Column(DateTime(timezone=True))
+
+# 7. Task
+class Task(Base):
+    __tablename__ = "task"
+    task_id = Column(Integer, primary_key=True, autoincrement=True)
+    pile_id = Column(Integer, ForeignKey("compostpile.pile_id", ondelete="CASCADE"), nullable=False)
+    title = Column(String(120), nullable=False)
+    action_type = Column(String(50)) # e.g., 'ADD_BROWNS', 'TURN_PILE'
+    date_scheduled = Column(Date, nullable=False)
+    time_scheduled = Column(Time)
+    status = Column(String(30), default="Active")
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
