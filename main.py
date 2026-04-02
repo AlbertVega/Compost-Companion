@@ -716,3 +716,17 @@ def complete_task(
     db.commit()
     db.refresh(task)
     return task
+@app.get("/compost-piles/{pile_id}/tasks/active", response_model=list[TaskResponse])
+def get_active_tasks_for_pile(
+    pile_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    pile = db.query(CompostPile).filter(CompostPile.pile_id == pile_id, CompostPile.username == current_user.username).first()
+    if not pile:
+        raise HTTPException(status_code=404, detail="Pile not found or not owned by user.")
+    tasks = db.query(models.Task).filter(
+        models.Task.pile_id == pile_id,
+        models.Task.status == "Active"
+    ).order_by(models.Task.date_scheduled.asc(), models.Task.time_scheduled.asc()).all()
+    return tasks
