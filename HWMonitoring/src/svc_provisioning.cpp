@@ -33,17 +33,30 @@ static void handle_scan_request() {
 
     String response;
     serializeJson(doc, response);
+    //delay(600);
     ble_send_message(response);
 }
 
+
+
 static void handle_set_wifi_request(JsonDocument& doc) {
-    if (!doc["ssid"].is<const char*>() || !doc["password"].is<const char*>()) {
+    if (!doc["ssid"].is<const char*>() || !doc["password"].is<const char*>() ||
+        !doc["pileId"].is<const char*>()) {
         ble_send_message("{\"status\":\"error\",\"reason\":\"missing_fields\"}");
         return;
     }
 
     String ssid = doc["ssid"].as<String>();
     String password = doc["password"].as<String>();
+    String pileIdStr = doc["pileId"].as<String>();
+    int pileId = pileIdStr.toInt();
+
+    if (pileId <= 0) {
+        ble_send_message("{\"status\":\"error\",\"reason\":\"invalid_pile_id\"}");
+        return;
+    }
+    Serial.print("[PROV] Received pileId: ");
+    Serial.println(pileId);
 
     ble_send_message("{\"status\":\"connecting\"}");
 
@@ -51,12 +64,13 @@ static void handle_set_wifi_request(JsonDocument& doc) {
 
    if (ok) {
     bool saved = storage_save_wifi_credentials(ssid, password);
-
-    if (saved) {
+    bool savedPile = storage_save_pile_id(pileId);
+    if (saved && savedPile) {
         // Build success response with MAC address
         JsonDocument respDoc;
         respDoc["status"] = "success";
-        respDoc["mac"] = wifi_get_mac();  //mac address
+        respDoc["mac"] = wifi_get_mac();
+        respDoc["pileId"] = pileId;  //mac address
 
         String respStr;
         serializeJson(respDoc, respStr);
