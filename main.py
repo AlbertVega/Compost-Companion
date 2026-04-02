@@ -501,3 +501,22 @@ def get_tasks_by_date(
         models.Task.date_scheduled == query_date
     ).all()
     return tasks
+
+@app.patch("/tasks/{task_id}/complete", response_model=TaskResponse)
+def complete_task(
+    task_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    task = db.query(models.Task).join(CompostPile).filter(
+        models.Task.task_id == task_id,
+        CompostPile.username == current_user.username
+    ).first()
+    
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+        
+    task.status = "Done"
+    db.commit()
+    db.refresh(task)
+    return task

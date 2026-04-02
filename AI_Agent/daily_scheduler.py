@@ -1,9 +1,9 @@
 import os
 import sys
 import pandas as pd
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, time
 
-# Agregamos la ruta principal para importar los módulos de backend y del modelo 
+# Add the parent directory to the path to import modules of backend and model
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from database import SessionLocal
@@ -12,25 +12,25 @@ from AI_Agent.decision_tree import predict_next_task
 
 def run_daily_predictions():
     """
-    Script que se ejecuta diariamente (ej. vía cron a las 00:00).
-    Consulta los registros del día anterior para todos los piles de cada usuario
-    y utiliza el Decision Tree para programar la tarea recomendada del día.
+    Script that runs daily (e.g., via cron at 00:00).
+    Queries the previous day's records for all piles of every user
+    and uses the Decision Tree to schedule the recommended task for the day.
     """
     db = SessionLocal()
     
-    # 1. Definir la ventana de "Ayer"
+    # 1. Define the "Yesterday" window
     yesterday = datetime.now(timezone.utc) - timedelta(days=1)
     start_of_yesterday = yesterday.replace(hour=0, minute=0, second=0, microsecond=0)
     end_of_yesterday = start_of_yesterday + timedelta(days=1)
-    target_schedule_date = datetime.now(timezone.utc).date() # La tarea es para "Hoy"
+    target_schedule_date = datetime.now(timezone.utc).date() # The task is for "Today"
 
     try:
-        # Obtenemos todos los piles de todos los usuarios
+        # Get all piles from all users
         all_piles = db.query(CompostPile).all()
-        print(f"[{datetime.now()}] Iniciando scheduler para {len(all_piles)} piles...")
+        print(f"[{datetime.now()}] Starting scheduler for {len(all_piles)} piles...")
 
         for pile in all_piles:
-            # 2. Consultamos directamente la base de datos (emulando la entrada del API)
+            # 2. Query the database directly (emulating API input)
             records = db.query(HealthRecord).filter(
                 HealthRecord.pile_id == pile.pile_id,
                 HealthRecord.timestamp >= start_of_yesterday,
@@ -38,10 +38,10 @@ def run_daily_predictions():
             ).all()
 
             if not records:
-                print(f"  - Pile ID {pile.pile_id}: Sin registros el día de ayer. Se omite.")
+                print(f"  - Pile ID {pile.pile_id}: No records for yesterday. Skipping.")
                 continue
 
-            # Convertimos la data al formato de pandas que espera el modelo
+            # Convert the data to the pandas format expected by the model
             records_data = []
             for r in records:
                 records_data.append({
@@ -53,13 +53,13 @@ def run_daily_predictions():
             df = pd.DataFrame(records_data).dropna()
 
             if df.empty:
-                print(f"  - Pile ID {pile.pile_id}: Registros sin data válida. Se omite.")
+                print(f"  - Pile ID {pile.pile_id}: Records without valid data. Skipping.")
                 continue
 
-            # 3. Convocamos a la función predict_next_task()
+            # 3. Call the predict_next_task() function
             prediction_label = predict_next_task(df, model_path='AI_Agent/decision_tree_model.joblib')
 
-            # 4. Formulamos un título amigable según la etiqueta predicha para la pila actual
+            # 4. Formulate a friendly title according to the predicted label for the current pile
             action_map = {
                 'TURN_PILE': f"Turn {pile.name}",
                 'WATER_PILE': f"Water {pile.name}",
@@ -69,9 +69,9 @@ def run_daily_predictions():
             }
             task_title = action_map.get(prediction_label, f"Review {pile.name}")
 
-            print(f"  - Pile ID {pile.pile_id} ({pile.name}): Predicción = {prediction_label}. Creando task...")
+            print(f"  - Pile ID {pile.pile_id} ({pile.name}): Prediction = {prediction_label}. Creating task...")
 
-            # 5. Guardamos la nueva tarea
+            # 5. Save the new task
             new_task = Task(
                 pile_id=pile.pile_id,
                 title=task_title,
@@ -82,10 +82,10 @@ def run_daily_predictions():
             db.add(new_task)
 
         db.commit()
-        print(f"[{datetime.now()}] Proceso diario finalizado con éxito.")
+        print(f"[{datetime.now()}] Daily process finished successfully.")
 
     except Exception as e:
-        print(f"Error procesando las predicciones diarias: {e}")
+        print(f"Error processing daily predictions: {e}")
         db.rollback()
     finally:
         db.close()

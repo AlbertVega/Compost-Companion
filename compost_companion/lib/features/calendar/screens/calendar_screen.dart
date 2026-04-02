@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:compost_companion/core/theme/app_colors.dart';
 import 'package:compost_companion/features/dashboard/screens/notification_screen.dart';
 import 'package:compost_companion/data/services/auth_service.dart';
+import 'package:compost_companion/features/calendar/screens/task_details_screen.dart';
 
 class CalendarScreen extends StatefulWidget {
   const CalendarScreen({super.key});
@@ -93,6 +94,20 @@ class _CalendarScreenState extends State<CalendarScreen> {
     setState(() {
       _focusedDate = DateTime(_focusedDate.year, _focusedDate.month + 1, 1);
     });
+  }
+
+  String _formatTime(String? timeStr) {
+    if (timeStr == null || timeStr.isEmpty) return '';
+    final parts = timeStr.split(':');
+    if (parts.length >= 2) {
+      int hour = int.parse(parts[0]);
+      final min = parts[1];
+      final period = hour >= 12 ? 'PM' : 'AM';
+      if (hour == 0) hour = 12;
+      if (hour > 12) hour -= 12;
+      return '$hour:$min $period';
+    }
+    return timeStr;
   }
 
   int _leadingEmpty() {
@@ -367,6 +382,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
                         final title = task['title'] ?? 'Task';
                         final actionType = task['action_type'] ?? 'MONITOR';
+                        final timeScheduled = _formatTime(task['time_scheduled']);
+                        final status = task['status'] ?? 'Active';
+                        final isDone = status == 'Done';
 
                         Widget icon;
                         Color iconColor = AppColors.accentGreen;
@@ -383,48 +401,83 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           icon = Icon(Icons.warning_amber_rounded, color: AppColors.accentGreen);
                         }
 
-                        return Column(
-                          children: [
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                CircleAvatar(
-                                  radius: 20,
-                                  backgroundColor: iconColor.withValues(alpha: 0.12),
-                                  child: icon,
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Text(
-                                    title,
-                                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                          color: AppColors.darkText,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                  ),
-                                ),
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.end,
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                      decoration: BoxDecoration(
-                                        color: AppColors.accentGreen.withValues(alpha: 0.14),
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      child: const Text('Active',
-                                          style: TextStyle(color: AppColors.darkGreen, fontWeight: FontWeight.w700, fontSize: 12)),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                            if (index < _tasksForSelectedDate.length - 1)
-                              const Padding(
-                                padding: EdgeInsets.symmetric(vertical: 8),
-                                child: Divider(height: 1),
+                        if (isDone) {
+                          icon = const Icon(Icons.check, color: Colors.grey);
+                          iconColor = Colors.grey;
+                        }
+
+                        return InkWell(
+                          onTap: () async {
+                            final result = await Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => TaskDetailsScreen(task: task),
                               ),
-                          ],
+                            );
+                            if (result == true && _selectedDate != null) {
+                              _fetchTasksForDate(_selectedDate!);
+                            }
+                          },
+                          child: Column(
+                            children: [
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  CircleAvatar(
+                                    radius: 20,
+                                    backgroundColor: isDone ? Colors.grey.withValues(alpha: 0.2) : iconColor.withValues(alpha: 0.12),
+                                    child: icon,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Text(
+                                      title,
+                                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                            color: isDone ? Colors.grey : AppColors.darkText,
+                                            fontWeight: FontWeight.w700,
+                                            decoration: isDone ? TextDecoration.lineThrough : null,
+                                          ),
+                                    ),
+                                  ),
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: [
+                                      if (timeScheduled.isNotEmpty) ...[
+                                        Text(
+                                          timeScheduled,
+                                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                                color: isDone ? Colors.grey : null,
+                                              ),
+                                        ),
+                                        const SizedBox(height: 6),
+                                      ],
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: isDone
+                                              ? Colors.grey.withValues(alpha: 0.14)
+                                              : AppColors.accentGreen.withValues(alpha: 0.14),
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                        child: Text(
+                                          status,
+                                          style: TextStyle(
+                                            color: isDone ? Colors.grey : AppColors.darkGreen,
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                              if (index < _tasksForSelectedDate.length - 1)
+                                const Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 8),
+                                  child: Divider(height: 1),
+                                ),
+                            ],
+                          ),
                         );
                       }).toList(),
                     ),

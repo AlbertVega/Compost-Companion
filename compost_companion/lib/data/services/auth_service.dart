@@ -33,8 +33,8 @@ class AuthService {
     if (kIsWeb) {
       baseUrl = 'http://127.0.0.1:8000';
     } else {
-      // Para Android Emulators. 
-      // (Si después compilas a un dispositivo físico, aquí pondrás la IP de tu PC en la red local ej. 192.168.1.XX)
+      // For Android Emulators. 
+      // (If you later compile to a physical device, put your PC's local network IP here e.g., 192.168.1.XX)
       baseUrl = 'http://10.0.2.2:8000'; 
     }
   }
