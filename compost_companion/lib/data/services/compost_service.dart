@@ -236,4 +236,26 @@ class CompostService {
       throw Exception('Failed to evaluate recipe: ${resp.body}');
     }
   }
+
+  Future<List<dynamic>> fetchActiveTasksForPile(int pileId) async {
+    final token = _auth.currentToken?.accessToken;
+    if (token == null) {
+      throw Exception('No authentication token available');
+    }
+
+    final uri = Uri.parse('$baseUrl/compost-piles/$pileId/tasks/active');
+    final resp = await http.get(
+      uri,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    ).timeout(const Duration(seconds: 10));
+
+    if (resp.statusCode == 200) {
+      return jsonDecode(resp.body) as List<dynamic>;
+    } else {
+      throw Exception('Failed to load active tasks: ${resp.statusCode}');
+    }
+  }
 }

@@ -5,6 +5,7 @@ import 'package:compost_companion/data/models/pile_ingredient_selection.dart';
 import 'package:compost_companion/data/services/pile_ingredient_store.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:compost_companion/features/dashboard/screens/notification_screen.dart';
+import 'package:compost_companion/features/calendar/screens/task_details_screen.dart';
 
 class PileDetailsScreen extends StatefulWidget {
   final int pileId;
@@ -23,6 +24,7 @@ class _PileDetailsScreenState extends State<PileDetailsScreen> {
   bool _loading = true;
   final PileIngredientStore _pileIngredientStore = PileIngredientStore();
   List<PileIngredientSelection> _selectedIngredients = const [];
+  List<dynamic> _activeTasks = [];
 
   @override
   void initState() {
@@ -38,9 +40,11 @@ class _PileDetailsScreenState extends State<PileDetailsScreen> {
     try {
       final r = await _service.fetchLatestHealthRecord(widget.pileId);
       final storedIngredients = await _pileIngredientStore.getPileIngredients(widget.pileId);
+      final tasks = await _service.fetchActiveTasksForPile(widget.pileId);
       setState(() {
         _record = r;
         _selectedIngredients = storedIngredients;
+        _activeTasks = tasks;
       });
     } catch (e) {
       setState(() {
@@ -229,21 +233,7 @@ class _PileDetailsScreenState extends State<PileDetailsScreen> {
                 const Text('Upcoming Tasks', style: TextStyle(
                     fontSize: 18, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(color: Colors.white,
-                      borderRadius: BorderRadius.circular(12)),
-                  child: Column(
-                    children: const [
-                      ListTile(leading: Icon(Icons.refresh),
-                          title: Text('Turn Pile'),
-                          subtitle: Text('Tomorrow, 9:00 AM')),
-                      ListTile(leading: Icon(Icons.water_drop),
-                          title: Text('Check Moisture'),
-                          subtitle: Text('Friday, 10:00 AM')),
-                    ],
-                  ),
-                ),
+                _buildUpcomingTasksCard(),
 
                 const SizedBox(height: 24),
                 Center(
@@ -295,6 +285,75 @@ class _PileDetailsScreenState extends State<PileDetailsScreen> {
             .toList(),
       ),
     );
+  }
+
+  String _formatTime(String? timeStr) {
+    if (timeStr == null || timeStr.isEmpty) return '';
+    final parts = timeStr.split(':');
+    if (parts.length >= 2) {
+      int hour = int.parse(parts[0]);
+      final min = parts[1];
+      final period = hour >= 12 ? 'PM' : 'AM';
+      if (hour == 0) hour = 12;
+      if (hour > 12) hour -= 12;
+      return '$hour:$min $period';
+    }
+    return timeStr;
+  }
+
+  Widget _buildUpcomingTasksCard() {
+    if (_activeTasks.isEmpty) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+            color: Colors.white, borderRadius: BorderRadius.circular(12)),
+        child: const Text('No active tasks right now.',
+            style: TextStyle(color: Colors.grey)),
+      );
+    }
+    return Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+            color: Colors.white, borderRadius: BorderRadius.circular(12)),
+        child: Column(
+            children: _activeTasks.map((task) {
+          final title = task['title'] ?? 'Task';
+          final actionType = task['action_type'] ?? 'MONITOR';
+          final dateStr = task['date_scheduled'] ?? '';
+          final timeScheduled = _formatTime(task['time_scheduled']);
+
+          Widget icon;
+          if (actionType == 'WATER_PILE') {
+            icon = const Icon(Icons.opacity, color: Colors.blue);
+          } else if (actionType == 'TURN_PILE') {
+            icon = const Icon(Icons.loop, color: Colors.orange);
+          } else if (actionType == 'ADD_BROWNS') {
+            icon = const Icon(Icons.park, color: Colors.brown);
+          } else {
+            icon = const Icon(Icons.warning_amber_rounded, color: Colors.green);
+          }
+
+          return InkWell(
+            onTap: () async {
+              final result = await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => TaskDetailsScreen(task: task),
+                ),
+              );
+              if (result == true) {
+                _fetchLatest(); // Refresh if task was marked done
+              }
+            },
+            child: ListTile(
+              leading: icon,
+              title: Text(title),
+              subtitle: Text('$dateStr  $timeScheduled'),
+              trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+            ),
+          );
+        }).toList()));
   }
 }
 
