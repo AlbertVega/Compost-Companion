@@ -14,7 +14,7 @@
 static const char* DEVICE_ID = "compost_01";
 
 static const uint32_t SAMPLE_INTERVAL_S = 20;
-static const uint32_t SEND_INTERVAL_S   = 60;
+static const uint32_t SEND_INTERVAL_S   = 30;
 static const uint16_t BATCH_MAX_SEND    = 2;
 
 static const float TEMP_HI = 70.0;
@@ -24,8 +24,8 @@ static const float RH_LO   = 35.0;
 
 static const char* BASE_URL = "http://192.168.1.10:8001";
 //static const char* BASE_URL = "http://192.168.18.2:8001";
-//static const char* BASE_URL = "http://20.186.57.186:8000";
-//static const int PILE_ID = 1;
+//static const char* BASE_URL = "http://20.186.57.186:8001";
+static const int PILE_ID = 1;
 static int g_pile_id = 1;
 static const char* BLE_DEVICE_NAME = "CompostMonitor";
 
@@ -191,7 +191,7 @@ void setup() {
   Serial.println("\nHWMonitoring");
 
   storage_init();
-  //storage_clear_wifi_credentials(); ///////////////ATENTION
+  //storage_clear_wifi_credentials(); ///////////////ATTENTION
   wifi_init();
 
   if (connect_saved_wifi()) {
