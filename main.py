@@ -617,6 +617,22 @@ def create_health_record_test(
         raise HTTPException(
             status_code=404, detail=f"Compost pile {pile_id} not found"
         )
+        
+    # Calculate health_score and status
+    t = float(record.temperature) if record.temperature is not None else 0.0
+    mc = float(record.moisture) if record.moisture is not None else 0.0
+    
+    s_mc = max(0.0, 1.0 - abs(mc - 47.5) / 5.0)
+    s_t = max(0.0, 1.0 - abs(t - 50.0) / 10.0)
+    
+    health_score = int(round(100.0 * (0.5 * s_mc + 0.5 * s_t)))
+    
+    if health_score > 70:
+        status = 'good'
+    elif 50 <= health_score <= 70:
+        status = 'acceptable'
+    else:
+        status = 'bad'
 
     db_record = HealthRecord(
         pile_id=pile_id,
@@ -625,6 +641,8 @@ def create_health_record_test(
         nitrogen_content=record.nitrogen_content,
         carbon_content=record.carbon_content,
         timestamp=record.timestamp or datetime.now(timezone.utc),
+        health_score=health_score,
+        status=status
     )
 
     db.add(db_record)
