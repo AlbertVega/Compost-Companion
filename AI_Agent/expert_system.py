@@ -110,8 +110,11 @@ class CompostExpertSystem:
         # rule-based logic engine: generating suggestions based on defined optimal ranges
         suggestions = []
         
+        cn_tolerance = 0.2
+        moisture_tolerance = 0.5
+        
         # 1. evaluate C/N Ratio
-        if cn_ratio < self.min_cn_ratio:
+        if cn_ratio < (self.min_cn_ratio - cn_tolerance):
             is_acceptable = cn_ratio >= self.acceptable_cn_low
             severity = "medium" if is_acceptable else "high"
             issue_text = f"C/N Ratio is acceptable but low ({cn_ratio:.1f}:1)" if is_acceptable else f"C/N Ratio is too low ({cn_ratio:.1f}:1)"
@@ -137,7 +140,7 @@ class CompostExpertSystem:
                 recommendation=recommendation,
                 severity=severity
             ))
-        elif cn_ratio > self.max_cn_ratio:
+        elif cn_ratio > (self.max_cn_ratio + cn_tolerance):
             is_acceptable = cn_ratio <= self.acceptable_cn_high
             severity = "medium" if is_acceptable else "high"
             issue_text = f"C/N Ratio is acceptable but high ({cn_ratio:.1f}:1)" if is_acceptable else f"C/N Ratio is too high ({cn_ratio:.1f}:1)"
@@ -164,7 +167,7 @@ class CompostExpertSystem:
             ))
 
         # 2. evaluate Moisture Level
-        if system_moisture < self.min_moisture:
+        if system_moisture < (self.min_moisture - moisture_tolerance):
             is_acceptable = system_moisture >= self.acceptable_moisture_low
             severity = "medium" if is_acceptable else "high"
             issue_text = f"Moisture is acceptable but low ({system_moisture:.1f}%)" if is_acceptable else f"Moisture is too low ({system_moisture:.1f}%)"
@@ -190,7 +193,7 @@ class CompostExpertSystem:
                 recommendation=recommendation,
                 severity=severity
             ))
-        elif system_moisture > self.max_moisture:
+        elif system_moisture > (self.max_moisture + moisture_tolerance):
             is_acceptable = system_moisture <= self.acceptable_moisture_high
             severity = "medium" if is_acceptable else "high"
             issue_text = f"Moisture is acceptable but high ({system_moisture:.1f}%)" if is_acceptable else f"Moisture is too high ({system_moisture:.1f}%)"
@@ -228,70 +231,11 @@ class CompostExpertSystem:
             ))
 
         return RecipeEvaluation(
-            total_weight_kg=total_weight,
-            total_carbon_weight=total_carbon_weight,
-            total_nitrogen_weight=total_nitrogen_weight,
-            calculated_cn_ratio=cn_ratio,
-            calculated_moisture_percent=system_moisture,
+            total_weight_kg=total_weight, # kg
+            total_carbon_weight=total_carbon_weight, # kg
+            total_nitrogen_weight=total_nitrogen_weight, # kg
+            calculated_cn_ratio=cn_ratio, # ratio
+            calculated_moisture_percent=system_moisture, # %
             suggestions=suggestions,
             is_optimal=is_optimal
         )
-
-# simple test case to demonstrate functionality
-if __name__ == "__main__":
-    expert_system = CompostExpertSystem()
-
-    # simulation of database available ingredients for testing
-    available_db = [
-        RecipeIngredient(name="Corn stalks", weight_kg=0.0, moisture_content=12.00, nitrogen_content=0.62, carbon_content=40.66),
-        RecipeIngredient(name="Grass clippings", weight_kg=0.0, moisture_content=82.00, nitrogen_content=3.40, carbon_content=40.00),
-        RecipeIngredient(name="Cocoa shells", weight_kg=0.0, moisture_content=8.00, nitrogen_content=2.00, carbon_content=52.00),
-        RecipeIngredient(name="Coffee grounds", weight_kg=0.0, moisture_content=60.00, nitrogen_content=2.00, carbon_content=40.00),
-    ]
-
-    # FIRST EVALUATION: Only Apple processing sludge (high moisture, low C/N)
-    test_recipe1 = [
-        RecipeIngredient(
-            name="Apple processing sludge", 
-            weight_kg=10.00, 
-            moisture_content=59.00, 
-            nitrogen_content=1.15, 
-            carbon_content=8.04
-        )
-    ]
-    
-    evaluation1 = expert_system.evaluate_recipe(test_recipe1, available_ingredients=available_db)
-    print("\n1 - First Compost Recipe Evaluation:")
-    print(f"Total Weight: {evaluation1.total_weight_kg:.2f} kg")
-    print(f"Calculated C/N: {evaluation1.calculated_cn_ratio:.2f}")
-    print(f"Calculated Moisture: {evaluation1.calculated_moisture_percent:.2f}%\n")
-    
-    for s in evaluation1.suggestions:
-        print(f"[{s.severity.upper()}] {s.issue}: {s.recommendation}")
-
-    # SECOND EVALUATION: Adding Corn stalks (low moisture, high C/N) to balance the recipe
-    test_recipe2 = [
-        RecipeIngredient(
-            name="Apple processing sludge", 
-            weight_kg=10.00, 
-            moisture_content=59.00, 
-            nitrogen_content=1.15, 
-            carbon_content=8.04
-        ),
-        RecipeIngredient(
-            name="Corn stalks", 
-            weight_kg=4.00, 
-            moisture_content=12.00, 
-            nitrogen_content=0.62, 
-            carbon_content=40.66 
-        )
-    ]
-    
-    evaluation2 = expert_system.evaluate_recipe(test_recipe2, available_ingredients=available_db)
-    print("\n2 - Second Compost Recipe Evaluation:")
-    print(f"Total Weight: {evaluation2.total_weight_kg:.2f} kg")
-    print(f"Calculated C/N: {evaluation2.calculated_cn_ratio:.2f}")
-    print(f"Calculated Moisture: {evaluation2.calculated_moisture_percent:.2f}%\n")
-    
-    for s in evaluation2.suggestions:
-        print(f"[{s.severity.upper()}] {s.issue}: {s.recommendation}")

@@ -1,6 +1,6 @@
 from pydantic import BaseModel, EmailStr, Field
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, date, time
 
 class UserCreate(BaseModel):
     username: str = Field(..., max_length=50)
@@ -110,6 +110,33 @@ class NotificationResponse(BaseModel):
     class Config:
         from_attributes = True
 
+class HealthRecordSimplifiedResponse(BaseModel):
+    timestamp: datetime
+    temperature: Optional[float]
+    moisture: Optional[float]
+
+    class Config:
+        from_attributes = True
+
+class TaskCreate(BaseModel):
+    pile_id: int
+    title: str = Field(..., max_length=120)
+    action_type: Optional[str] = None
+    date_scheduled: date
+    time_scheduled: Optional[time] = None
+
+class TaskResponse(BaseModel):
+    task_id: int
+    pile_id: int
+    title: str
+    action_type: Optional[str]
+    date_scheduled: date
+    time_scheduled: Optional[time]
+    status: Optional[str]
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
 
 class Token(BaseModel):
     access_token: str

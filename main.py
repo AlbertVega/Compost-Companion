@@ -23,12 +23,15 @@ from schemas import (
     HealthRecordCreate,
     HealthRecordIngest,
     HealthRecordResponse,
+    HealthRecordSimplifiedResponse,
     IngredientCreate,
     IngredientResponse,
     Token,
     TokenData,
     EvaluateRecipeRequest,
-    RecipeEvaluation
+    RecipeEvaluation,
+    TaskCreate,
+    TaskResponse
 )
 import bcrypt
 
@@ -635,3 +638,81 @@ def create_health_record_test(
 
     db.refresh(db_record)
     return db_record
+    
+# ============================================================================
+# TASKS ENDPOINTS
+# ============================================================================
+
+@app.get("/compost-piles/{pile_id}/health-records/yesterday", response_model=list[HealthRecordSimplifiedResponse])
+def get_yesterday_health_records(
+    pile_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    pile = db.query(CompostPile).filter(CompostPile.pile_id == pile_id, CompostPile.username == current_user.username).first()
+    if not pile:
+        raise HTTPException(status_code=404, detail="Pile not found")
+
+    yesterday = datetime.now(timezone.utc) - timedelta(days=1)
+    start_of_yesterday = yesterday.replace(hour=0, minute=0, second=0, microsecond=0)
+    end_of_yesterday = start_of_yesterday + timedelta(days=1)
+
+    records = db.query(HealthRecord).filter(
+        HealthRecord.pile_id == pile_id,
+        HealthRecord.timestamp >= start_of_yesterday,
+        HealthRecord.timestamp < end_of_yesterday
+    ).all()
+    return records
+
+@app.post("/tasks", response_model=TaskResponse, status_code=201)
+def create_task(
+    task: TaskCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    pile = db.query(CompostPile).filter(CompostPile.pile_id == task.pile_id, CompostPile.username == current_user.username).first()
+    if not pile:
+        raise HTTPException(status_code=404, detail="Pile not found")
+
+    new_task = models.Task(**task.model_dump()) 
+    db.add(new_task)
+    db.commit()
+    db.refresh(new_task)
+    return new_task
+
+@app.get("/tasks/date/{target_date}", response_model=list[TaskResponse])
+def get_tasks_by_date(
+    target_date: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    try:
+        query_date = datetime.strptime(target_date, "%Y-%m-%d").date()
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD.")
+
+    user_piles = db.query(CompostPile.pile_id).filter(CompostPile.username == current_user.username)
+    tasks = db.query(models.Task).filter(
+        models.Task.pile_id.in_(user_piles),
+        models.Task.date_scheduled == query_date
+    ).all()
+    return tasks
+
+@app.patch("/tasks/{task_id}/complete", response_model=TaskResponse)
+def complete_task(
+    task_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    task = db.query(models.Task).join(CompostPile).filter(
+        models.Task.task_id == task_id,
+        CompostPile.username == current_user.username
+    ).first()
+    
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+        
+    task.status = "Done"
+    db.commit()
+    db.refresh(task)
+    return task
