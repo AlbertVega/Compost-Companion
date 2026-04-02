@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
+import 'package:compost_companion/core/config/api_config.dart';
 import 'package:compost_companion/data/models/compost_pile.dart';
 import 'package:compost_companion/data/models/dashboard_pile.dart';
 import 'package:compost_companion/data/models/ingredient.dart';
@@ -11,7 +12,7 @@ class CompostService {
   final String baseUrl;
   final AuthService _auth;
 
-  CompostService({this.baseUrl = 'http://127.0.0.1:8000', AuthService? auth})
+  CompostService({this.baseUrl = ApiConfig.baseUrl, AuthService? auth})
       : _auth = auth ?? AuthService();
 
   Future<List<CompostPile>> fetchMyPiles() async {

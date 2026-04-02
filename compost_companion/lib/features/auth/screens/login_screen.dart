@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:compost_companion/core/theme/app_colors.dart';
 import 'package:compost_companion/features/auth/screens/signup_screen.dart';
 import 'package:compost_companion/data/services/auth_service.dart';
-import 'package:compost_companion/features/calendar/screens/calendar_screen.dart';
 import 'package:compost_companion/main.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -108,19 +107,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 32),
                   // Login Button
                   _buildLoginButton(context),
-                  const SizedBox(height: 16),
-                  // Continue as Guest Button
-                  _buildTextButton(
-                    context,
-                    'Continue as Guest',
-                    () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (context) => const CalendarScreen(),
-                        ),
-                      );
-                    },
-                  ),
                   const SizedBox(height: 12),
                   // Create Account Button
                   _buildTextButton(

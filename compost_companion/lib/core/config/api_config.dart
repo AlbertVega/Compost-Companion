@@ -1,3 +1,3 @@
 class ApiConfig {
-  static const String baseUrl = 'http://<IP>:8000';
+  static const String baseUrl = 'http://20.186.57.186:8000';
 }
