@@ -1,17 +1,18 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
-import 'package:apple_maps_flutter/apple_maps_flutter.dart';
-import 'package:geolocator/geolocator.dart';
-import 'package:geocoding/geocoding.dart' as geo;
-import 'notification_screen.dart';
+import 'dart:async';
+import 'dart:convert';
 
-// Model for Pin Data to support future real-time integration
+import 'package:flutter/material.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:http/http.dart' as http;
+
+// Model for Pin Data
 class SoilPin {
   final String id;
   final String name;
   final LatLng position;
-  final double moisture; // Dynamic value
-  final String health;   // Dynamic value
+  final double moisture;
+  final String health;
   final DateTime lastUpdated;
 
   SoilPin({
@@ -41,115 +42,286 @@ class MapScreen extends StatefulWidget {
 }
 
 class _MapScreenState extends State<MapScreen> {
-  AppleMapController? _mapController;
+  GoogleMapController? _mapController;
   final TextEditingController _searchController = TextEditingController();
-  
-  LatLng _center = const LatLng(53.5461, -113.4938); // Default to Edmonton
+
+  LatLng _center = const LatLng(53.5461, -113.4938);
+  LatLng? _tempPinPosition;
+
   bool _isDropMode = false;
+  bool _locationPermissionGranted = false;
+  bool _isSearching = false;
+  bool _isMapReady = false;
+
+  static const String _googleGeocodingApiKey =
+      'AIzaSyDyGNSWSr3q8yQhMwu0JLgTmYBqtywZyLE';
+
+  static const double _topMapPadding = 96;
+  static const double _rightMapPadding = 72;
+  static const double _bottomMapPadding = 140;
+  static const double _leftMapPadding = 16;
 
   @override
   void initState() {
     super.initState();
-    _determinePosition();
+    _checkLocationPermission();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _checkLocationPermission() async {
+    final bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      _showError('Location services are disabled.');
+      return;
+    }
+
+    LocationPermission permission = await Geolocator.checkPermission();
+
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        _showError('Location permission denied.');
+        return;
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      _showError(
+        'Location permission permanently denied. Enable it in app settings.',
+      );
+      return;
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _locationPermissionGranted = true;
+    });
+
+    await _determinePosition();
   }
 
   Future<void> _determinePosition() async {
-    bool serviceEnabled;
-    LocationPermission permission;
+    try {
+      final Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.best,
+      );
 
-    serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) return;
+      final LatLng currentLatLng = LatLng(
+        position.latitude,
+        position.longitude,
+      );
 
-    permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) return;
-    }
-    
-    if (permission == LocationPermission.deniedForever) return;
+      if (!mounted) return;
+      setState(() {
+        _center = currentLatLng;
+      });
 
-    Position position = await Geolocator.getCurrentPosition();
-    
-    setState(() {
-      _center = LatLng(position.latitude, position.longitude);
-    });
-    
-    if (mounted && _mapController != null) {
-      _mapController!.animateCamera(
+      await _mapController?.animateCamera(
         CameraUpdate.newCameraPosition(
-          CameraPosition(target: _center, zoom: 15.0),
+          CameraPosition(
+            target: currentLatLng,
+            zoom: 17.0,
+          ),
         ),
       );
+    } catch (e) {
+      debugPrint('Error getting current position: $e');
+      _showError('Unable to get your current location.');
     }
   }
 
   Future<void> _searchAndNavigate() async {
-    String query = _searchController.text;
+    final String query = _searchController.text.trim();
     if (query.isEmpty) return;
 
-    // Check if searching for a labeled pin first
-    for (var pin in widget.globalPins.values) {
+    for (final pin in widget.globalPins.values) {
       if (pin.name.toLowerCase() == query.toLowerCase()) {
-        _mapController?.animateCamera(
+        await _mapController?.animateCamera(
           CameraUpdate.newCameraPosition(
-            CameraPosition(target: pin.position, zoom: 15.0),
+            CameraPosition(target: pin.position, zoom: 17.0),
           ),
         );
         return;
       }
     }
 
+    if (!mounted) return;
+    setState(() {
+      _isSearching = true;
+    });
+
     try {
-      List<geo.Location> locations = await geo.locationFromAddress(query);
-      if (locations.isNotEmpty) {
-        geo.Location first = locations.first;
-        LatLng target = LatLng(first.latitude, first.longitude);
-        
-        _mapController?.animateCamera(
+      final uri = Uri.https(
+        'maps.googleapis.com',
+        '/maps/api/geocode/json',
+        {
+          'address': query,
+          'key': _googleGeocodingApiKey,
+        },
+      );
+
+      final response = await http.get(uri);
+
+      if (response.statusCode != 200) {
+        _showError('Search failed. Server error ${response.statusCode}.');
+        return;
+      }
+
+      final data = jsonDecode(response.body);
+
+      if (data['status'] == 'OK' &&
+          data['results'] != null &&
+          (data['results'] as List).isNotEmpty) {
+        final location = data['results'][0]['geometry']['location'];
+
+        final LatLng target = LatLng(
+          (location['lat'] as num).toDouble(),
+          (location['lng'] as num).toDouble(),
+        );
+
+        await _mapController?.animateCamera(
           CameraUpdate.newCameraPosition(
-            CameraPosition(target: target, zoom: 14.0),
+            CameraPosition(target: target, zoom: 15.0),
           ),
         );
+      } else if (data['status'] == 'ZERO_RESULTS') {
+        _showError('Location not found.');
+      } else {
+        _showError('Search failed: ${data['status']}');
       }
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Location not found. Please try a more specific address.')),
-      );
+      debugPrint('Search error: $e');
+      _showError('Search failed. Check internet and API setup.');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSearching = false;
+        });
+      }
     }
+  }
+
+  Future<void> _startDropMode() async {
+    if (_mapController == null || !_isMapReady) {
+      _showError('Map is still loading.');
+      return;
+    }
+
+    try {
+      final LatLngBounds bounds = await _mapController!.getVisibleRegion();
+
+      final double centerLat =
+          (bounds.northeast.latitude + bounds.southwest.latitude) / 2;
+      final double centerLng =
+          (bounds.northeast.longitude + bounds.southwest.longitude) / 2;
+
+      if (!mounted) return;
+      setState(() {
+        _isDropMode = true;
+        _tempPinPosition = LatLng(centerLat, centerLng);
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Drag the red pin anywhere you want, then tap the check button.',
+          ),
+        ),
+      );
+    } catch (e) {
+      debugPrint('Error starting drop mode: $e');
+      if (!mounted) return;
+      setState(() {
+        _isDropMode = true;
+        _tempPinPosition = _center;
+      });
+    }
+  }
+
+  void _toggleDropMode() {
+    if (_isDropMode) {
+      if (_tempPinPosition == null) {
+        _showError('No pin selected.');
+        return;
+      }
+      _showLabelDialog(_tempPinPosition!);
+    } else {
+      _startDropMode();
+    }
+  }
+
+  void _cancelDropMode() {
+    setState(() {
+      _isDropMode = false;
+      _tempPinPosition = null;
+    });
+  }
+
+  void _showError(String message) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.redAccent,
+      ),
+    );
   }
 
   void _showLabelDialog(LatLng position) {
     final TextEditingController labelController = TextEditingController();
+
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (context) => AlertDialog(
         title: const Text('Label this Pin'),
         content: TextField(
           controller: labelController,
-          decoration: const InputDecoration(hintText: 'e.g. Pile A, My Garden'),
+          decoration: const InputDecoration(
+            hintText: 'e.g. Pile A, My Garden',
+          ),
           autofocus: true,
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () {
+              if (!mounted) return;
+              setState(() {
+                _isDropMode = false;
+                _tempPinPosition = null;
+              });
+              Navigator.pop(context);
+            },
             child: const Text('Cancel'),
           ),
           ElevatedButton(
             onPressed: () {
-              String name = labelController.text.isEmpty ? 'New Pin' : labelController.text;
-              final String id = position.toString();
-              final newPin = SoilPin(
-                id: id,
-                name: name,
-                position: position,
-                lastUpdated: DateTime.now(),
+              final String name = labelController.text.trim().isEmpty
+                  ? 'New Pin'
+                  : labelController.text.trim();
+
+              widget.onAddPin(
+                SoilPin(
+                  id: DateTime.now().millisecondsSinceEpoch.toString(),
+                  name: name,
+                  position: position,
+                  lastUpdated: DateTime.now(),
+                ),
               );
-              widget.onAddPin(newPin);
-              Navigator.pop(context);
+
+              if (!mounted) return;
               setState(() {
                 _isDropMode = false;
+                _tempPinPosition = null;
               });
+
+              Navigator.pop(context);
             },
             child: const Text('Save'),
           ),
@@ -176,28 +348,43 @@ class _MapScreenState extends State<MapScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(pin.name, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                Text(
+                  pin.name,
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
                 IconButton(
                   icon: const Icon(Icons.delete_outline, color: Colors.red),
-                  onPressed: () => _showDeleteConfirmation(id),
+                  onPressed: () {
+                    widget.onRemovePin(id);
+                    Navigator.pop(context);
+                  },
                 ),
               ],
             ),
             const Divider(),
             const SizedBox(height: 10),
-            _buildDetailRow(Icons.health_and_safety, 'Soil Health', pin.health, color: Colors.green),
+            _buildDetailRow(
+              Icons.health_and_safety,
+              'Soil Health',
+              pin.health,
+              color: Colors.green,
+            ),
             const SizedBox(height: 12),
-            _buildDetailRow(Icons.water_drop, 'Moisture', '${pin.moisture}%', color: Colors.blue),
+            _buildDetailRow(
+              Icons.water_drop,
+              'Moisture',
+              '${pin.moisture}%',
+              color: Colors.blue,
+            ),
             const SizedBox(height: 12),
-            _buildDetailRow(Icons.location_on, 'Coordinates', 
+            _buildDetailRow(
+              Icons.location_on,
+              'Coordinates',
               '${pin.position.latitude.toStringAsFixed(4)}, ${pin.position.longitude.toStringAsFixed(4)}',
-              color: Colors.grey),
-            const Spacer(),
-            Center(
-              child: Text(
-                'Last updated: ${pin.lastUpdated.hour}:${pin.lastUpdated.minute.toString().padLeft(2, '0')}',
-                style: const TextStyle(color: Colors.grey, fontSize: 12),
-              ),
+              color: Colors.grey,
             ),
           ],
         ),
@@ -205,199 +392,177 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
-  Widget _buildDetailRow(IconData icon, String label, String value, {required Color color}) {
+  Widget _buildDetailRow(
+    IconData icon,
+    String label,
+    String value, {
+    required Color color,
+  }) {
     return Row(
       children: [
         Icon(icon, size: 20, color: color),
         const SizedBox(width: 12),
-        Text('$label: ', style: const TextStyle(fontWeight: FontWeight.w500)),
-        Text(value, style: const TextStyle(color: Colors.black87)),
+        Text(
+          '$label: ',
+          style: const TextStyle(fontWeight: FontWeight.w500),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: const TextStyle(color: Colors.black87),
+          ),
+        ),
       ],
     );
   }
 
-  void _showDeleteConfirmation(String id) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Pin?'),
-        content: const Text('Are you sure you want to remove this pin from the map?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('No'),
-          ),
-          TextButton(
-            onPressed: () {
-              widget.onRemovePin(id);
-              Navigator.pop(context); // Close dialog
-              Navigator.pop(context); // Close bottom sheet
-            },
-            child: const Text('Yes, Delete', style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _onMapCreated(AppleMapController controller) {
-    _mapController = controller;
-  }
-
-  void _zoomIn() {
-    _mapController?.animateCamera(CameraUpdate.zoomIn());
-  }
-
-  void _zoomOut() {
-    _mapController?.animateCamera(CameraUpdate.zoomOut());
-  }
-
   @override
   Widget build(BuildContext context) {
-    final Set<Annotation> annotations = widget.globalPins.values.map((pin) {
-      return Annotation(
-        annotationId: AnnotationId(pin.id),
+    final Set<Marker> markers = widget.globalPins.values.map((pin) {
+      return Marker(
+        markerId: MarkerId(pin.id),
         position: pin.position,
-        infoWindow: InfoWindow(
-          title: pin.name,
-          snippet: 'Tap to view soil details',
-        ),
-        onTap: () {
-          _showPinDetails(pin.id);
-        },
+        onTap: () => _showPinDetails(pin.id),
       );
     }).toSet();
+
+    if (_isDropMode && _tempPinPosition != null) {
+      markers.add(
+        Marker(
+          markerId: const MarkerId('temp_drop_pin'),
+          position: _tempPinPosition!,
+          draggable: true,
+          icon: BitmapDescriptor.defaultMarkerWithHue(
+            BitmapDescriptor.hueRed,
+          ),
+          infoWindow: const InfoWindow(title: 'Drag pin to desired spot'),
+          zIndex: 2,
+          onDragEnd: (LatLng newPosition) {
+            if (!mounted) return;
+            setState(() {
+              _tempPinPosition = newPosition;
+            });
+          },
+        ),
+      );
+    }
 
     return Scaffold(
       body: Stack(
         children: [
           Positioned.fill(
-            child: AppleMap(
-              onMapCreated: _onMapCreated,
+            child: GoogleMap(
+              onMapCreated: (GoogleMapController controller) {
+                _mapController = controller;
+                _isMapReady = true;
+              },
               initialCameraPosition: CameraPosition(
                 target: _center,
                 zoom: 11.0,
               ),
-              annotations: annotations,
-              onTap: (LatLng pos) {
+              padding: const EdgeInsets.fromLTRB(
+                _leftMapPadding,
+                _topMapPadding,
+                _rightMapPadding,
+                _bottomMapPadding,
+              ),
+              markers: markers,
+              myLocationEnabled: _locationPermissionGranted,
+              myLocationButtonEnabled: false,
+              zoomControlsEnabled: false,
+              compassEnabled: true,
+              onCameraMove: (CameraPosition position) {
+                _center = position.target;
+              },
+              onTap: (LatLng position) {
                 if (_isDropMode) {
-                  _showLabelDialog(pos);
+                  setState(() {
+                    _tempPinPosition = position;
+                  });
                 }
               },
-              myLocationEnabled: true,
-              myLocationButtonEnabled: false,
-              mapType: MapType.standard,
             ),
           ),
-
-          // Header Overlay
           Positioned(
             top: 0,
             left: 0,
             right: 0,
             child: SafeArea(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
-                child: Column(
+                padding: const EdgeInsets.all(12),
+                child: Row(
                   children: [
-                    Row(
-                      children: [
-                        // Back Button
-                        GestureDetector(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (context) => const NotificationScreen()),
-                            );
-                          },
-                          child: Container(
-                            width: 44,
-                            height: 44,
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.8),
-                              shape: BoxShape.circle,
+                    _buildCircleButton(
+                      Icons.arrow_back_ios_new,
+                      () => Navigator.pop(context),
+                      size: 44,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Container(
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(22),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Colors.black12,
+                              blurRadius: 4,
+                              offset: Offset(0, 2),
                             ),
-                            child: SvgPicture.asset(
-                              'assets/I104-215;7758-11224.svg',
-                              width: 12,
-                              height: 22,
-                            ),
-                          ),
+                          ],
                         ),
-                        const SizedBox(width: 10),
-                        // Search Bar
-                        Expanded(
-                          child: Container(
-                            height: 44, // Leveled with the back button
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.9),
-                              borderRadius: BorderRadius.circular(10),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.1),
-                                  blurRadius: 4,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
-                            child: Row(
-                              children: [
-                                const Icon(Icons.search, color: Color(0xFF2F6F4E)),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: TextField(
-                                    controller: _searchController,
-                                    onSubmitted: (_) => _searchAndNavigate(),
-                                    decoration: const InputDecoration(
-                                      hintText: 'Search for location or pin...',
-                                      border: InputBorder.none,
-                                      hintStyle: TextStyle(
-                                        color: Color(0xFF4C4C4C),
-                                        fontSize: 13,
-                                      ),
+                        padding: const EdgeInsets.symmetric(horizontal: 15),
+                        child: TextField(
+                          controller: _searchController,
+                          onSubmitted: (_) => _searchAndNavigate(),
+                          decoration: InputDecoration(
+                            hintText: 'Search location or pin...',
+                            border: InputBorder.none,
+                            icon: _isSearching
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
                                     ),
+                                  )
+                                : const Icon(
+                                    Icons.search,
+                                    color: Color(0xFF2F6F4E),
                                   ),
-                                ),
-                              ],
-                            ),
                           ),
                         ),
-                      ],
+                      ),
                     ),
                   ],
                 ),
               ),
             ),
           ),
-
-          // Map Controls
           Positioned(
-            bottom: 20,
-            right: 20,
+            bottom: 110,
+            right: 12,
             child: Column(
               children: [
+                if (_isDropMode) ...[
+                  _buildMapButton(
+                    Icons.close,
+                    _cancelDropMode,
+                    color: Colors.red,
+                  ),
+                  const SizedBox(height: 12),
+                ],
                 _buildMapButton(
-                  _isDropMode ? Icons.close : Icons.add_location_alt,
-                  () {
-                    setState(() {
-                      _isDropMode = !_isDropMode;
-                    });
-                    if (_isDropMode) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Drop Mode: Tap anywhere on the map to place a pin.')),
-                      );
-                    }
-                  },
-                  color: _isDropMode ? Colors.red : const Color(0xFF2F6F4E),
+                  _isDropMode ? Icons.check : Icons.add_location_alt,
+                  _toggleDropMode,
+                  color: _isDropMode ? Colors.green : const Color(0xFF2F6F4E),
                 ),
-                const SizedBox(height: 10),
-                _buildMapButton(Icons.add, _zoomIn),
-                const SizedBox(height: 10),
-                _buildMapButton(Icons.remove, _zoomOut),
-                const SizedBox(height: 10),
-                _buildMapButton(Icons.my_location, _determinePosition),
+                const SizedBox(height: 12),
+                _buildMapButton(
+                  Icons.my_location,
+                  _determinePosition,
+                ),
               ],
             ),
           ),
@@ -406,18 +571,55 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
-  Widget _buildMapButton(IconData icon, VoidCallback onPressed, {Color color = const Color(0xFF2F6F4E)}) {
+  Widget _buildCircleButton(
+    IconData icon,
+    VoidCallback onTap, {
+    double size = 40,
+  }) {
     return GestureDetector(
-      onTap: onPressed,
+      onTap: onTap,
       child: Container(
-        width: 45,
-        height: 45,
-        decoration: BoxDecoration(
+        width: size,
+        height: size,
+        decoration: const BoxDecoration(
           color: Colors.white,
           shape: BoxShape.circle,
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 6, offset: const Offset(0, 3))],
         ),
-        child: Icon(icon, color: color, size: 24),
+        child: Icon(
+          icon,
+          size: 18,
+          color: Colors.black87,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMapButton(
+    IconData icon,
+    VoidCallback onTap, {
+    Color color = const Color(0xFF2F6F4E),
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 40,
+        height: 40,
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black26,
+              blurRadius: 4,
+              offset: Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Icon(
+          icon,
+          color: color,
+          size: 20,
+        ),
       ),
     );
   }

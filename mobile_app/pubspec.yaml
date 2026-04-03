@@ -12,7 +12,8 @@ dependencies:
     sdk: flutter
   flutter_svg: ^2.0.10+1
   google_maps_flutter: ^2.10.0
-  apple_maps_flutter: ^1.4.0
+  http: ^1.2.1
+
   geolocator: ^13.0.1
   geocoding: ^3.0.0
   cupertino_icons: ^1.0.8
