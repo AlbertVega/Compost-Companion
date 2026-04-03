@@ -4,8 +4,10 @@ import 'package:compost_companion/data/models/dashboard_pile.dart';
 import 'package:compost_companion/data/models/pile_ingredient_selection.dart';
 import 'package:compost_companion/data/services/pile_ingredient_store.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:compost_companion/features/dashboard/screens/notification_screen.dart';
 import 'package:compost_companion/features/calendar/screens/task_details_screen.dart';
+import 'package:compost_companion/features/dashboard/screens/map_picker_screen.dart';
 
 class PileDetailsScreen extends StatefulWidget {
   final int pileId;
@@ -22,6 +24,8 @@ class _PileDetailsScreenState extends State<PileDetailsScreen> {
   HealthRecord? _record;
   String? _error;
   bool _loading = true;
+  bool _updatingLocation = false;
+  String? _currentLocation;
   final PileIngredientStore _pileIngredientStore = PileIngredientStore();
   List<PileIngredientSelection> _selectedIngredients = const [];
   List<dynamic> _activeTasks = [];
@@ -41,10 +45,19 @@ class _PileDetailsScreenState extends State<PileDetailsScreen> {
       final r = await _service.fetchLatestHealthRecord(widget.pileId);
       final storedIngredients = await _pileIngredientStore.getPileIngredients(widget.pileId);
       final tasks = await _service.fetchActiveTasksForPile(widget.pileId);
+      final piles = await _service.fetchMyPiles();
+      String? pileLocation;
+      for (final pile in piles) {
+        if (pile.id == widget.pileId) {
+          pileLocation = pile.location;
+          break;
+        }
+      }
       setState(() {
         _record = r;
         _selectedIngredients = storedIngredients;
         _activeTasks = tasks;
+        _currentLocation = pileLocation;
       });
     } catch (e) {
       setState(() {
@@ -54,6 +67,85 @@ class _PileDetailsScreenState extends State<PileDetailsScreen> {
       setState(() {
         _loading = false;
       });
+    }
+  }
+
+  LatLng? _parseCoordinateLocation(String? location) {
+    if (location == null || location.trim().isEmpty) return null;
+    final parts = location.split(',');
+    if (parts.length != 2) return null;
+
+    final lat = double.tryParse(parts[0].trim());
+    final lng = double.tryParse(parts[1].trim());
+    if (lat == null || lng == null) return null;
+
+    return LatLng(lat, lng);
+  }
+
+  String _formatCoordinate(double value) {
+    return value.toStringAsFixed(6).replaceFirst(RegExp(r'\.?0+$'), '');
+  }
+
+  String _formatLocationForDisplay(String? location) {
+    final LatLng? parsed = _parseCoordinateLocation(location);
+    if (parsed == null) {
+      return (location == null || location.trim().isEmpty)
+          ? 'Not set'
+          : location;
+    }
+
+    return '${_formatCoordinate(parsed.latitude)}, ${_formatCoordinate(parsed.longitude)}';
+  }
+
+  Future<void> _editLocation() async {
+    final LatLng? initialLocation = _parseCoordinateLocation(_currentLocation);
+    final LatLng? result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => MapPickerScreen(initialLocation: initialLocation),
+      ),
+    );
+
+    if (result == null || !mounted) return;
+
+    final String newLocation =
+        '${_formatCoordinate(result.latitude)},${_formatCoordinate(result.longitude)}';
+
+    setState(() {
+      _updatingLocation = true;
+    });
+
+    try {
+      await _service.updatePileLocation(
+        pileId: widget.pileId,
+        location: newLocation,
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _currentLocation = newLocation;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Location updated'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error updating location: ${e.toString().replaceFirst('Exception: ', '')}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _updatingLocation = false;
+        });
+      }
     }
   }
 
@@ -186,6 +278,48 @@ class _PileDetailsScreenState extends State<PileDetailsScreen> {
                                         : 'No recent record')),
                           ],
                         ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.location_on_outlined, color: color),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'Location: ${_formatLocationForDisplay(_currentLocation)}',
+                          style: const TextStyle(fontSize: 14),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton(
+                        onPressed: _updatingLocation ? null : _editLocation,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: color,
+                          foregroundColor: Colors.white,
+                        ),
+                        child: _updatingLocation
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                              )
+                            : Text(
+                                _parseCoordinateLocation(_currentLocation) == null
+                                    ? 'Set Location'
+                                    : 'Edit Location',
+                              ),
                       ),
                     ],
                   ),

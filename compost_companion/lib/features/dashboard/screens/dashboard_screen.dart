@@ -202,8 +202,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               pile: piles[i],
                               deleteInProgress: _deletingPileIds.contains(piles[i].id),
                               onDelete: () => _confirmAndDeletePile(piles[i]),
-                              onTap: () {
-                                Navigator.push(
+                              onTap: () async {
+                                await Navigator.push(
                                   context,
                                   MaterialPageRoute(
                                     builder: (context) => PileDetailsScreen(
@@ -212,6 +212,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     ),
                                   ),
                                 );
+                                if (!mounted) return;
+                                _refreshPiles();
                               },
                             ),
                             if (i < piles.length - 1) const SizedBox(height: 20),

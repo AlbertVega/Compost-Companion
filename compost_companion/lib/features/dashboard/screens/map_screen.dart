@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
+import 'package:compost_companion/data/models/compost_pile.dart';
+import 'package:compost_companion/data/services/compost_service.dart';
 
 // Model for Pin Data
 class SoilPin {
@@ -44,14 +46,17 @@ class MapScreen extends StatefulWidget {
 class _MapScreenState extends State<MapScreen> {
   GoogleMapController? _mapController;
   final TextEditingController _searchController = TextEditingController();
+  final CompostService _compostService = CompostService();
 
   LatLng _center = const LatLng(53.5461, -113.4938);
   LatLng? _tempPinPosition;
+  List<CompostPile> _compostPiles = [];
 
   bool _isDropMode = false;
   bool _locationPermissionGranted = false;
   bool _isSearching = false;
   bool _isMapReady = false;
+  bool _isLoadingPiles = false;
 
   static const String _googleGeocodingApiKey =
       'AIzaSyDyGNSWSr3q8yQhMwu0JLgTmYBqtywZyLE';
@@ -65,12 +70,36 @@ class _MapScreenState extends State<MapScreen> {
   void initState() {
     super.initState();
     _checkLocationPermission();
+    _loadCompostPiles();
   }
 
   @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadCompostPiles() async {
+    if (!mounted) return;
+    setState(() {
+      _isLoadingPiles = true;
+    });
+
+    try {
+      final piles = await _compostService.fetchMyPiles();
+      if (!mounted) return;
+      setState(() {
+        _compostPiles = piles;
+      });
+    } catch (e) {
+      debugPrint('Failed to load compost piles: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingPiles = false;
+        });
+      }
+    }
   }
 
   Future<void> _checkLocationPermission() async {
@@ -146,6 +175,23 @@ class _MapScreenState extends State<MapScreen> {
             CameraPosition(target: pin.position, zoom: 17.0),
           ),
         );
+        return;
+      }
+    }
+
+    // Check compost piles by name and navigate to their coordinate if available
+    for (final pile in _compostPiles) {
+      if (pile.name.toLowerCase() == query.toLowerCase()) {
+        final LatLng? pos = _parseLocation(pile.location);
+        if (pos != null) {
+          await _mapController?.animateCamera(
+            CameraUpdate.newCameraPosition(
+              CameraPosition(target: pos, zoom: 17.0),
+            ),
+          );
+        } else {
+          _showError('Pile found but has no coordinate location');
+        }
         return;
       }
     }
@@ -271,6 +317,23 @@ class _MapScreenState extends State<MapScreen> {
         backgroundColor: Colors.redAccent,
       ),
     );
+  }
+
+  LatLng? _parseLocation(String? location) {
+    try {
+      if (location == null) return null;
+
+      final parts = location.split(',');
+      if (parts.length != 2) return null;
+
+      final double? lat = double.tryParse(parts[0].trim());
+      final double? lng = double.tryParse(parts[1].trim());
+      if (lat == null || lng == null) return null;
+
+      return LatLng(lat, lng);
+    } catch (_) {
+      return null;
+    }
   }
 
   void _showLabelDialog(LatLng position) {
@@ -426,6 +489,25 @@ class _MapScreenState extends State<MapScreen> {
       );
     }).toSet();
 
+    for (final pile in _compostPiles) {
+      final LatLng? position = _parseLocation(pile.location);
+      if (position == null) {
+        debugPrint('Invalid location ignored: ${pile.location}');
+        continue;
+      }
+
+      debugPrint('Valid location for ${pile.name}: $position');
+      markers.add(
+        Marker(
+          markerId: MarkerId('pile-${pile.id}'),
+          position: position,
+          infoWindow: InfoWindow(title: pile.name),
+        ),
+      );
+    }
+
+    final bool hasValidPileMarkers = _compostPiles.any((pile) => _parseLocation(pile.location) != null);
+
     if (_isDropMode && _tempPinPosition != null) {
       markers.add(
         Marker(
@@ -483,6 +565,57 @@ class _MapScreenState extends State<MapScreen> {
               },
             ),
           ),
+          if (_isLoadingPiles)
+            Positioned(
+              top: 92,
+              right: 16,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.92),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Colors.black12,
+                      blurRadius: 8,
+                      offset: Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                    SizedBox(width: 8),
+                    Text('Loading piles...'),
+                  ],
+                ),
+              ),
+            ),
+          if (!_isLoadingPiles && !hasValidPileMarkers)
+            Positioned(
+              top: 92,
+              right: 16,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.92),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Colors.black12,
+                      blurRadius: 8,
+                      offset: Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: const Text('No piles with location yet'),
+              ),
+            ),
           Positioned(
             top: 0,
             left: 0,

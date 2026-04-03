@@ -172,6 +172,44 @@ class CompostService {
     } catch (_) {}
     throw Exception(message);
   }
+
+  Future<void> updatePileLocation({
+    required int pileId,
+    required String location,
+  }) async {
+    final token = _auth.currentToken?.accessToken;
+    if (token == null) {
+      throw Exception('No authentication token available');
+    }
+
+    final uri = Uri.parse('$baseUrl/compost-piles/$pileId');
+    final resp = await http
+        .patch(
+          uri,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+          body: jsonEncode({
+            'location': location,
+          }),
+        )
+        .timeout(const Duration(seconds: 10));
+
+    if (resp.statusCode == 200 || resp.statusCode == 204) {
+      return;
+    }
+
+    String message = 'Failed to update location';
+    try {
+      final decoded = jsonDecode(resp.body);
+      if (decoded is Map && decoded['detail'] != null) {
+        message = decoded['detail'].toString();
+      }
+    } catch (_) {}
+    throw Exception(message);
+  }
+
   Future<void> deleteCompostPile(int pileId) async {
     final token = _auth.currentToken?.accessToken;
     if (token == null) {
