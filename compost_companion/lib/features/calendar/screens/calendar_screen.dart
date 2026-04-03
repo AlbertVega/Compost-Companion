@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
 import 'package:compost_companion/core/theme/app_colors.dart';
 import 'package:compost_companion/features/dashboard/screens/notification_screen.dart';
@@ -151,11 +150,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   IconButton(
                     onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const NotificationScreen())),
                     icon: const Icon(Icons.notifications_none),
-                    color: AppColors.darkText,
-                  ),
-                  IconButton(
-                    onPressed: () => Navigator.of(context).maybePop(),
-                    icon: const Icon(Icons.arrow_back),
                     color: AppColors.darkText,
                   ),
                   Expanded(

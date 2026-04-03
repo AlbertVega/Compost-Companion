@@ -107,4 +107,10 @@ class PileIngredientStore {
     _ingredientsByPileId.remove(pileId);
     await _persist();
   }
+
+  Future<void> clearAllPileIngredients() async {
+    await _ensureLoaded();
+    _ingredientsByPileId.clear();
+    await _persist();
+  }
 }

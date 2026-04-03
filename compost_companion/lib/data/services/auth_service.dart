@@ -35,6 +35,10 @@ class AuthService {
 
   TokenResponse? get currentToken => _token;
 
+  void logout() {
+    _token = null;
+  }
+
   Future<void> registerUser(UserCreate user) async {
     final uri = Uri.parse('$baseUrl/users/register');
 
