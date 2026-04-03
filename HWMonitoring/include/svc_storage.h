@@ -9,5 +9,6 @@ bool storage_has_wifi_credentials();
 bool storage_load_wifi_credentials(String& ssid, String& password);
 bool storage_save_wifi_credentials(const String& ssid, const String& password);
 void storage_clear_wifi_credentials();
-
+bool storage_save_pile_id(int pileId);
+int storage_load_pile_id();
 #endif

@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:compost_companion/core/theme/app_colors.dart';
 import 'package:compost_companion/features/dashboard/screens/notification_screen.dart';
+import 'package:compost_companion/data/services/auth_service.dart';
+import 'package:compost_companion/features/calendar/screens/task_details_screen.dart';
 
 class CalendarScreen extends StatefulWidget {
   const CalendarScreen({super.key});
@@ -12,6 +16,13 @@ class CalendarScreen extends StatefulWidget {
 class _CalendarScreenState extends State<CalendarScreen> {
   DateTime _focusedDate = DateTime.now();
   DateTime? _selectedDate;
+  
+  List<dynamic> _tasksForSelectedDate = [];
+  bool _isLoadingTasks = false;
+
+  final AuthService _auth = AuthService();
+
+  String get _baseUrl => _auth.baseUrl;
 
   static const List<String> _monthNames = [
     'January',
@@ -32,6 +43,44 @@ class _CalendarScreenState extends State<CalendarScreen> {
   void initState() {
     super.initState();
     _selectedDate = DateTime.now();
+    _fetchTasksForDate(_selectedDate!);
+  }
+
+  Future<void> _fetchTasksForDate(DateTime date) async {
+    setState(() {
+      _isLoadingTasks = true;
+      _tasksForSelectedDate = [];
+    });
+
+    final String dateString = "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+    final Uri url = Uri.parse('$_baseUrl/tasks/date/$dateString');
+    final String? token = _auth.currentToken?.accessToken;
+
+    try {
+      final response = await http.get(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        setState(() {
+          _tasksForSelectedDate = json.decode(response.body);
+        });
+      } else {
+        print('Error fetching tasks: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Network error: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingTasks = false;
+        });
+      }
+    }
   }
 
   void _prevMonth() {
@@ -44,6 +93,20 @@ class _CalendarScreenState extends State<CalendarScreen> {
     setState(() {
       _focusedDate = DateTime(_focusedDate.year, _focusedDate.month + 1, 1);
     });
+  }
+
+  String _formatTime(String? timeStr) {
+    if (timeStr == null || timeStr.isEmpty) return '';
+    final parts = timeStr.split(':');
+    if (parts.length >= 2) {
+      int hour = int.parse(parts[0]);
+      final min = parts[1];
+      final period = hour >= 12 ? 'PM' : 'AM';
+      if (hour == 0) hour = 12;
+      if (hour > 12) hour -= 12;
+      return '$hour:$min $period';
+    }
+    return timeStr;
   }
 
   int _leadingEmpty() {
@@ -87,11 +150,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   IconButton(
                     onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const NotificationScreen())),
                     icon: const Icon(Icons.notifications_none),
-                    color: AppColors.darkText,
-                  ),
-                  IconButton(
-                    onPressed: () => Navigator.of(context).maybePop(),
-                    icon: const Icon(Icons.arrow_back),
                     color: AppColors.darkText,
                   ),
                   Expanded(
@@ -237,6 +295,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           setState(() {
                             _selectedDate = DateTime(_focusedDate.year, _focusedDate.month, day);
                           });
+                          _fetchTasksForDate(_selectedDate!);
                         },
                         child: Padding(
                           padding: const EdgeInsets.all(4.0),
@@ -293,73 +352,131 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
               const SizedBox(height: 12),
 
-              // Mock schedule card
-              Card(
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                elevation: 4,
-                color: AppColors.white,
-                child: Padding(
-                  padding: const EdgeInsets.all(12.0),
-                  child: Column(
-                    children: [
-                      Row(
-                        children: [
-                          CircleAvatar(
-                            radius: 20,
-                            backgroundColor: AppColors.accentGreen.withValues(alpha: 0.12),
-                            child: Icon(Icons.warning_amber_rounded, color: AppColors.accentGreen),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              'Turn Backyard Pile A',
-                              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                    color: AppColors.darkText,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                            ),
-                          ),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text('9:00 AM', style: Theme.of(context).textTheme.bodyMedium),
-                              const SizedBox(height: 6),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(color: AppColors.accentGreen.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(12)),
-                                child: Text('Active', style: TextStyle(color: AppColors.darkGreen, fontWeight: FontWeight.w700, fontSize: 12)),
+              // Dynamic Schedule card
+              if (_isLoadingTasks)
+                const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator()))
+              else if (_tasksForSelectedDate.isEmpty)
+                const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(20),
+                    child: Text('No tasks scheduled for this day', style: TextStyle(color: Colors.grey)),
+                  ),
+                )
+              else
+                Card(
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  elevation: 4,
+                  color: AppColors.white,
+                  child: Padding(
+                    padding: const EdgeInsets.all(12.0),
+                    child: Column(
+                      children: _tasksForSelectedDate.asMap().entries.map((entry) {
+                        final index = entry.key;
+                        final task = entry.value;
+
+                        final title = task['title'] ?? 'Task';
+                        final actionType = task['action_type'] ?? 'MONITOR';
+                        final timeScheduled = _formatTime(task['time_scheduled']);
+                        final status = task['status'] ?? 'Active';
+                        final isDone = status == 'Done';
+
+                        Widget icon;
+                        Color iconColor = AppColors.accentGreen;
+                        if (actionType == 'WATER_PILE') {
+                          icon = const Icon(Icons.opacity, color: Colors.blue);
+                          iconColor = Colors.blue;
+                        } else if (actionType == 'TURN_PILE') {
+                          icon = const Icon(Icons.loop, color: Colors.orange);
+                          iconColor = Colors.orange;
+                        } else if (actionType == 'ADD_BROWNS') {
+                          icon = const Icon(Icons.park, color: Colors.brown);
+                          iconColor = Colors.brown;
+                        } else {
+                          icon = Icon(Icons.warning_amber_rounded, color: AppColors.accentGreen);
+                        }
+
+                        if (isDone) {
+                          icon = const Icon(Icons.check, color: Colors.grey);
+                          iconColor = Colors.grey;
+                        }
+
+                        return InkWell(
+                          onTap: () async {
+                            final result = await Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => TaskDetailsScreen(task: task),
                               ),
+                            );
+                            if (result == true && _selectedDate != null) {
+                              _fetchTasksForDate(_selectedDate!);
+                            }
+                          },
+                          child: Column(
+                            children: [
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  CircleAvatar(
+                                    radius: 20,
+                                    backgroundColor: isDone ? Colors.grey.withValues(alpha: 0.2) : iconColor.withValues(alpha: 0.12),
+                                    child: icon,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Text(
+                                      title,
+                                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                            color: isDone ? Colors.grey : AppColors.darkText,
+                                            fontWeight: FontWeight.w700,
+                                            decoration: isDone ? TextDecoration.lineThrough : null,
+                                          ),
+                                    ),
+                                  ),
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: [
+                                      if (timeScheduled.isNotEmpty) ...[
+                                        Text(
+                                          timeScheduled,
+                                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                                color: isDone ? Colors.grey : null,
+                                              ),
+                                        ),
+                                        const SizedBox(height: 6),
+                                      ],
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: isDone
+                                              ? Colors.grey.withValues(alpha: 0.14)
+                                              : AppColors.accentGreen.withValues(alpha: 0.14),
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                        child: Text(
+                                          status,
+                                          style: TextStyle(
+                                            color: isDone ? Colors.grey : AppColors.darkGreen,
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                              if (index < _tasksForSelectedDate.length - 1)
+                                const Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 8),
+                                  child: Divider(height: 1),
+                                ),
                             ],
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      const Divider(height: 1),
-                      const SizedBox(height: 8),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          CircleAvatar(radius: 20, backgroundColor: AppColors.accentGreen.withValues(alpha: 0.12), child: Icon(Icons.loop, color: AppColors.accentGreen)),
-                          const SizedBox(width: 12),
-                          Expanded(child: Text('Backyard Pile A Curing Period', style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: AppColors.darkText, fontWeight: FontWeight.w700))),
-                          Column(crossAxisAlignment: CrossAxisAlignment.end, children: [Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), decoration: BoxDecoration(color: AppColors.accentGreen.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(12)), child: Text('Active', style: TextStyle(color: AppColors.darkGreen, fontWeight: FontWeight.w700, fontSize: 12)))])
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      const Divider(height: 1),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          CircleAvatar(radius: 20, backgroundColor: Colors.red.withValues(alpha: 0.12), child: const Icon(Icons.opacity, color: Colors.red)),
-                          const SizedBox(width: 12),
-                          Expanded(child: Text('Check moisture at Garden Pile C', style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: AppColors.darkText, fontWeight: FontWeight.w700))),
-                          Column(crossAxisAlignment: CrossAxisAlignment.end, children: [Text('4:00 PM', style: Theme.of(context).textTheme.bodyMedium), const SizedBox(height: 6), Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), decoration: BoxDecoration(color: Colors.red.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(12)), child: const Text('Needs Attention', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w700, fontSize: 12)))])
-                        ],
-                      ),
-                    ],
+                        );
+                      }).toList(),
+                    ),
                   ),
                 ),
-              ),
 
               const SizedBox(height: 24),
             ],

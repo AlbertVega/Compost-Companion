@@ -44,7 +44,6 @@ class _ConnectDeviceScreenState extends State<ConnectDeviceScreen> {
   String? _selectedDeviceName;
 
   // Step 2: WiFi
-  static const List<String> mockNetworks = ['Home WiFi', 'Hotspot', 'Office'];
   List<String> _networks = [];
   String? _selectedSsid;
   final TextEditingController _passwordController = TextEditingController();
@@ -107,17 +106,23 @@ class _ConnectDeviceScreenState extends State<ConnectDeviceScreen> {
       // Optional BLE scan. If empty or fails, fall back to mockDevices.
       final scanned = await _bt.scanDevices(timeout: const Duration(seconds: 4));
 
+      final sortedScanned = [...scanned]
+        ..sort((a, b) {
+          final byName = a.displayName.toLowerCase().compareTo(b.displayName.toLowerCase());
+          if (byName != 0) return byName;
+          return a.id.compareTo(b.id);
+        });
+
       // Build display labels using displayName and a short id fallback.
-      final labels = scanned
+      final labels = sortedScanned
           .map((d) {
             final shortId = d.id.contains(':') ? d.id.split(':').last : d.id;
             return d.displayName.isNotEmpty ? '${d.displayName} ($shortId)' : d.id;
           })
           .toList();
-      labels.sort();
 
       setState(() {
-        _scannedDevices = scanned;
+        _scannedDevices = sortedScanned;
         _devices = labels.isNotEmpty ? labels : List<String>.from(mockDevices);
         _busy = false;
       });
@@ -172,53 +177,62 @@ class _ConnectDeviceScreenState extends State<ConnectDeviceScreen> {
       _passwordController.text = '';
     });
 
-    // If we have a real connection, ask the ESP for networks.
-    if (_bt.isConnected) {
-      try {
-        final completer = Completer<List<String>>();
-        late final StreamSubscription sub;
-        sub = _bt.incoming.listen((msg) {
-          if (msg['status'] == 'scan_result' && msg['networks'] is List) {
-            final nets = List<String>.from(msg['networks']);
-            if (!completer.isCompleted) completer.complete(nets);
-          }
-        });
-
-        final ok = await _bt.sendJson({'action': 'scan'});
-        if (!ok) {
-          await sub.cancel();
-          setState(() {
-            _networks = List<String>.from(mockNetworks);
-            _busy = false;
-          });
-          return;
-        }
-
-        final nets = await completer.future.timeout(
-          const Duration(seconds: 6),
-          onTimeout: () => <String>[],
-        );
-        await sub.cancel();
-
-        setState(() {
-          _networks = nets.isNotEmpty ? nets : List<String>.from(mockNetworks);
-          _busy = false;
-        });
-        return;
-      } catch (_) {
-        setState(() {
-          _networks = List<String>.from(mockNetworks);
-          _busy = false;
-        });
+    if (!_bt.isConnected && _selectedBleDevice != null) {
+      _bt.selectDevice(_selectedBleDevice!);
+      final connected = await _bt.connect();
+      if (!connected) {
+        _setError('Could not connect to selected ESP32 over BLE');
         return;
       }
     }
 
-    // Mock path
-    setState(() {
-      _networks = List<String>.from(mockNetworks);
-      _busy = false;
-    });
+    if (!_bt.isConnected) {
+      _setError('No real BLE connection. Please select a detected ESP32 device first');
+      return;
+    }
+
+    try {
+      final completer = Completer<List<String>>();
+      late final StreamSubscription sub;
+      sub = _bt.incoming.listen((msg) {
+        if (msg['status'] == 'scan_result' && msg['networks'] is List) {
+          final nets = (msg['networks'] as List).map((e) => e.toString()).toList();
+          if (!completer.isCompleted) completer.complete(nets);
+        } else if (msg['status'] == 'error') {
+          if (!completer.isCompleted) {
+            completer.completeError(Exception(msg['reason']?.toString() ?? 'scan_error'));
+          }
+        }
+      });
+
+        final ok = await _bt.sendJson({'action': 'scan'});
+        if (!ok) {
+          await sub.cancel();
+          _setError('Failed to send Wi-Fi scan request to ESP32');
+          return;
+        }
+
+      final nets = await completer.future.timeout(
+        const Duration(seconds: 12),
+        onTimeout: () => throw TimeoutException('Timed out waiting for Wi-Fi scan result'),
+      );
+      await sub.cancel();
+
+      setState(() {
+        _networks = nets;
+        _busy = false;
+        if (_networks.isEmpty) {
+          _error = 'ESP32 returned no Wi-Fi networks';
+        }
+      });
+      return;
+    } on TimeoutException catch (e) {
+      _setError(e.message ?? 'Timed out waiting for Wi-Fi scan result from ESP32');
+      return;
+    } catch (e) {
+      _setError('Failed to scan Wi-Fi networks from ESP32: $e');
+      return;
+    }
   }
 
   Future<void> _connectWifi() async {
@@ -241,13 +255,20 @@ class _ConnectDeviceScreenState extends State<ConnectDeviceScreen> {
 
     // Real BLE path
     if (_bt.isConnected) {
+      String? failureReason;
       try {
         final completer = Completer<void>();
         late final StreamSubscription sub;
         sub = _bt.incoming.listen((msg) {
-          if (msg['status'] == 'success') {
+          final status = msg['status']?.toString().trim().toLowerCase();
+          if (status == 'success') {
             if (!completer.isCompleted) completer.complete();
-          } else if (msg['status'] == 'connecting') {
+          } else if (status == 'error') {
+            failureReason = msg['reason']?.toString() ?? 'unknown_error';
+            if (!completer.isCompleted) {
+              completer.completeError(Exception(failureReason));
+            }
+          } else if (status == 'connecting') {
             // remain in configuring state
           }
         });
@@ -273,8 +294,12 @@ class _ConnectDeviceScreenState extends State<ConnectDeviceScreen> {
           _state = ConnectState.success;
         });
         return;
-      } catch (_) {
-        _setError('Failed to configure device');
+      } on TimeoutException catch (e) {
+        _setError(e.message ?? 'Timed out waiting for success response from ESP32');
+        return;
+      } catch (e) {
+        final detail = failureReason == null ? '$e' : failureReason!;
+        _setError('Failed to configure device: $detail');
         return;
       }
     }

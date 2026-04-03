@@ -1,6 +1,6 @@
 from pydantic import BaseModel, EmailStr, Field
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, date, time
 
 class UserCreate(BaseModel):
     username: str = Field(..., max_length=50)
@@ -22,14 +22,24 @@ class UserResponse(BaseModel):
 
 class CompostPileCreate(BaseModel):
     name: str = Field(..., max_length=100)
+    device_id: Optional[str] = Field(None, max_length=80)
     volume_at_creation: Optional[float] = None
     location: Optional[str] = None
+    
+ 
+class CompostPileUpdate(BaseModel): #For updating pile fields (linking/unlinking a device).
+    name: Optional[str] = Field(None, max_length=100)
+    device_id: Optional[str] = Field(None, max_length=80)
+    volume_at_creation: Optional[float] = None
+    location: Optional[str] = None
+ 
 
 
 class CompostPileResponse(BaseModel):
     pile_id: int
     username: str
     name: str
+    device_id: Optional[str]
     volume_at_creation: Optional[float]
     location: Optional[str]
     created_at: datetime
@@ -100,6 +110,33 @@ class NotificationResponse(BaseModel):
     class Config:
         from_attributes = True
 
+class HealthRecordSimplifiedResponse(BaseModel):
+    timestamp: datetime
+    temperature: Optional[float]
+    moisture: Optional[float]
+
+    class Config:
+        from_attributes = True
+
+class TaskCreate(BaseModel):
+    pile_id: int
+    title: str = Field(..., max_length=120)
+    action_type: Optional[str] = None
+    date_scheduled: date
+    time_scheduled: Optional[time] = None
+
+class TaskResponse(BaseModel):
+    task_id: int
+    pile_id: int
+    title: str
+    action_type: Optional[str]
+    date_scheduled: date
+    time_scheduled: Optional[time]
+    status: Optional[str]
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
 
 class Token(BaseModel):
     access_token: str
@@ -108,8 +145,6 @@ class Token(BaseModel):
 
 class TokenData(BaseModel):
     username: Optional[str] = None
-
-
 class RecipeIngredient(BaseModel):
     """
     Schema representing a single ingredient in the compost recipe.

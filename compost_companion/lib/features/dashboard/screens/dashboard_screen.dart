@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:compost_companion/data/models/dashboard_pile.dart';
+import 'package:compost_companion/data/services/auth_service.dart';
 import 'package:compost_companion/data/services/compost_service.dart';
 import 'package:compost_companion/data/services/pile_ingredient_store.dart';
+import 'package:compost_companion/features/auth/screens/login_screen.dart';
 import 'package:compost_companion/features/dashboard/widgets/compost_pile_card.dart';
 import 'notification_screen.dart';
 import 'pile_details_screen.dart';
@@ -16,6 +18,7 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   late Future<List<DashboardPile>> _futurePiles;
+  final _authService = AuthService();
   final _service = CompostService();
   final _pileIngredientStore = PileIngredientStore();
   final Set<int> _deletingPileIds = <int>{};
@@ -29,6 +32,54 @@ class _DashboardScreenState extends State<DashboardScreen> {
     setState(() {
       _futurePiles = _service.fetchDashboardData();
     });
+  }
+
+  Future<void> _handleRefresh() async {
+    final next = _service.fetchDashboardData();
+    setState(() {
+      _futurePiles = next;
+    });
+
+    try {
+      await next;
+    } catch (_) {
+      // Keep behavior consistent with FutureBuilder error rendering.
+    }
+  }
+
+  Future<void> _logout() async {
+    final shouldLogout = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Log out?'),
+          content: const Text('You will need to sign in again to continue.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Log out'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldLogout != true || !mounted) {
+      return;
+    }
+
+    _authService.logout();
+    await _pileIngredientStore.clearAllPileIngredients();
+    if (!mounted) return;
+
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (route) => false,
+    );
   }
 
   Future<void> _confirmAndDeletePile(DashboardPile pile) async {
@@ -93,64 +144,87 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF7F9F6).withOpacity(0.9),
       body: SafeArea(
-        child: FutureBuilder<List<DashboardPile>>(
-          future: _futurePiles,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            if (snapshot.hasError) {
-              // global failure fetching piles
-              return Center(child: Text('Error: ${snapshot.error}'));
-            }
-            final piles = snapshot.data ?? [];
-            if (piles.isEmpty) {
-              return const Center(child: Text('No compost piles found.'));
-            }
-            return SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              child: Column(
-                children: [
-                  // Header with notification, logo, and title
-                  _buildHeader(context),
-                  const SizedBox(height: 24),
+        child: RefreshIndicator(
+          onRefresh: _handleRefresh,
+          child: FutureBuilder<List<DashboardPile>>(
+            future: _futurePiles,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  children: const [
+                    SizedBox(height: 200),
+                    Center(child: CircularProgressIndicator()),
+                  ],
+                );
+              }
+              if (snapshot.hasError) {
+                // global failure fetching piles
+                return ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  children: [
+                    _buildHeader(context),
+                    const SizedBox(height: 80),
+                    Center(child: Text('Error: ${snapshot.error}')),
+                  ],
+                );
+              }
+              final piles = snapshot.data ?? [];
+              if (piles.isEmpty) {
+                return ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  children: [
+                    _buildHeader(context),
+                    const SizedBox(height: 80),
+                    const Center(child: Text('No compost piles found.')),
+                  ],
+                );
+              }
+              return SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: Column(
+                  children: [
+                    // Header with notification, logo, and title
+                    _buildHeader(context),
+                    const SizedBox(height: 24),
 
-                  // Next Action Card
-                  _buildNextActionCard(),
-                  const SizedBox(height: 40),
+                    // Next Action Card
+                    _buildNextActionCard(),
+                    const SizedBox(height: 40),
 
-                  // Pile Cards List
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Column(
-                      children: [
-                        for (int i = 0; i < piles.length; i++) ...[
-                          CompostPileCard(
-                            pile: piles[i],
-                            deleteInProgress: _deletingPileIds.contains(piles[i].id),
-                            onDelete: () => _confirmAndDeletePile(piles[i]),
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => PileDetailsScreen(
-                                    pileId: piles[i].id,
-                                    pileName: piles[i].name,
+                    // Pile Cards List
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Column(
+                        children: [
+                          for (int i = 0; i < piles.length; i++) ...[
+                            CompostPileCard(
+                              pile: piles[i],
+                              deleteInProgress: _deletingPileIds.contains(piles[i].id),
+                              onDelete: () => _confirmAndDeletePile(piles[i]),
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => PileDetailsScreen(
+                                      pileId: piles[i].id,
+                                      pileName: piles[i].name,
+                                    ),
                                   ),
-                                ),
-                              );
-                            },
-                          ),
-                          if (i < piles.length - 1) const SizedBox(height: 20),
+                                );
+                              },
+                            ),
+                            if (i < piles.length - 1) const SizedBox(height: 20),
+                          ],
                         ],
-                      ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 30),
-                ],
-              ),
-            );
-          },
+                    const SizedBox(height: 30),
+                  ],
+                ),
+              );
+            },
+          ),
         ),
       ),
     );
@@ -178,7 +252,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
             style: TextStyle(color: Colors.black, fontSize: 20, fontWeight: FontWeight.w500),
           ),
           const Spacer(),
-          const SizedBox(width: 24),
+          IconButton(
+            onPressed: _refreshPiles,
+            tooltip: 'Refresh',
+            icon: const Icon(Icons.refresh, color: Colors.black87),
+          ),
+          IconButton(
+            onPressed: _logout,
+            tooltip: 'Log out',
+            icon: const Icon(Icons.logout, color: Colors.black87),
+          ),
         ],
       ),
     );

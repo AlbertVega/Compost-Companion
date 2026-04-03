@@ -28,6 +28,12 @@ class BluetoothService {
   BluetoothDevice? _device;
   BluetoothCharacteristic? _writeChar;
   BluetoothCharacteristic? _notifyChar;
+  StreamSubscription<List<int>>? _notifySub;
+  String _rxBuffer = '';
+
+  static const String _serviceShortUuid = '1234';
+  static const String _notifyShortUuid = '1235';
+  static const String _writeShortUuid = '1236';
 
   bool get isConnected => _device?.isConnected ?? false;
 
@@ -39,6 +45,95 @@ class BluetoothService {
 
   final StreamController<Map<String, dynamic>> _incoming = StreamController.broadcast();
   Stream<Map<String, dynamic>> get incoming => _incoming.stream;
+
+  String _bestDeviceName(ScanResult r) {
+    final advName = r.advertisementData.advName.trim();
+    final platformName = r.device.platformName.trim();
+    if (advName.isNotEmpty) return advName;
+    if (platformName.isNotEmpty) return platformName;
+    return '';
+  }
+
+  bool _uuidMatchesShort(dynamic uuid, String shortUuid) {
+    final s = uuid.toString().toLowerCase();
+    final short = shortUuid.toLowerCase();
+    return s == short || s.startsWith('0000$short-');
+  }
+
+  void _tryEmitJson(String candidate) {
+    final trimmed = candidate.trim();
+    if (trimmed.isEmpty) return;
+    try {
+      final json = jsonDecode(trimmed);
+      if (json is Map<String, dynamic>) {
+        _incoming.add(json);
+      }
+    } catch (_) {
+      // Keep buffering until full JSON object is available.
+    }
+  }
+
+  void _onNotifyData(List<int> data) {
+    if (data.isEmpty) return;
+
+    final filtered = data.where((b) => b != 0).toList();
+    if (filtered.isEmpty) return;
+
+    _rxBuffer += utf8.decode(filtered, allowMalformed: true);
+
+    while (true) {
+      final start = _rxBuffer.indexOf('{');
+      if (start < 0) {
+        _rxBuffer = '';
+        break;
+      }
+      if (start > 0) {
+        _rxBuffer = _rxBuffer.substring(start);
+      }
+
+      bool inString = false;
+      bool escaped = false;
+      int depth = 0;
+      int end = -1;
+
+      for (int i = 0; i < _rxBuffer.length; i++) {
+        final ch = _rxBuffer[i];
+        if (escaped) {
+          escaped = false;
+          continue;
+        }
+        if (ch == '\\') {
+          escaped = true;
+          continue;
+        }
+        if (ch == '"') {
+          inString = !inString;
+          continue;
+        }
+        if (inString) continue;
+
+        if (ch == '{') {
+          depth++;
+        } else if (ch == '}') {
+          depth--;
+          if (depth == 0) {
+            end = i;
+            break;
+          }
+        }
+      }
+
+      if (end < 0) break;
+
+      final candidate = _rxBuffer.substring(0, end + 1);
+      _rxBuffer = _rxBuffer.substring(end + 1);
+      _tryEmitJson(candidate);
+
+      if (_rxBuffer.startsWith('\n')) {
+        _rxBuffer = _rxBuffer.substring(1);
+      }
+    }
+  }
 
   /// Scans for an ESP32 device and returns it if found.
   Future<BluetoothDevice?> scanForESP({Duration timeout = const Duration(seconds: 8)}) async {
@@ -54,7 +149,7 @@ class BluetoothService {
       final completer = Completer<BluetoothDevice?>();
       final sub = FlutterBluePlus.scanResults.listen((results) {
         for (final r in results) {
-          final name = r.device.name ?? '';
+          final name = r.device.platformName;
           if (name.toLowerCase().contains('esp32')) {
             _device = r.device;
             if (!completer.isCompleted) completer.complete(_device);
@@ -98,11 +193,8 @@ class BluetoothService {
       sub = FlutterBluePlus.scanResults.listen((results) {
         for (final r in results) {
           final adv = r.advertisementData;
-          final localName = (adv.localName ?? '').trim();
-          final deviceName = (r.device.name ?? '').trim();
-          final display = localName.isNotEmpty
-              ? localName
-              : (deviceName.isNotEmpty ? deviceName : r.device.remoteId.str);
+          final displayName = _bestDeviceName(r);
+          final display = displayName.isNotEmpty ? displayName : r.device.remoteId.str;
           if (nameKeyword != null && nameKeyword.isNotEmpty) {
             if (!display.toLowerCase().contains(nameKeyword.toLowerCase())) continue;
           }
@@ -112,7 +204,7 @@ class BluetoothService {
             displayName: display,
             id: r.device.remoteId.str,
             rssi: r.rssi,
-            manufacturerData: adv.manufacturerData ?? {},
+            manufacturerData: adv.manufacturerData,
           );
         }
       });
@@ -133,42 +225,62 @@ class BluetoothService {
   Future<bool> connect() async {
     if (_device == null) return false;
     try {
+      _writeChar = null;
+      _notifyChar = null;
+      await _notifySub?.cancel();
+      _notifySub = null;
+      _rxBuffer = '';
+
       await _device!.connect(autoConnect: false);
       final services = await _device!.discoverServices();
+
+      BluetoothCharacteristic? notifyFallback;
+      BluetoothCharacteristic? writeFallback;
+
       for (final s in services) {
+        final isEspService = _uuidMatchesShort(s.uuid, _serviceShortUuid);
         for (final c in s.characteristics) {
           if (c.properties.notify) {
-            _notifyChar = c;
-            try {
-              await _notifyChar!.setNotifyValue(true);
-            } catch (_) {}
-            _notifyChar!.onValueReceived.listen((data) {
-              if (data.isEmpty) return;
-              try {
-                final str = utf8.decode(data);
-                final json = jsonDecode(str) as Map<String, dynamic>;
-                _incoming.add(json);
-              } catch (_) {}
-            });
+            notifyFallback ??= c;
+            if (isEspService && _uuidMatchesShort(c.uuid, _notifyShortUuid)) {
+              _notifyChar = c;
+            }
           }
           if (c.properties.write || c.properties.writeWithoutResponse) {
-            _writeChar ??= c;
+            writeFallback ??= c;
+            if (isEspService && _uuidMatchesShort(c.uuid, _writeShortUuid)) {
+              _writeChar = c;
+            }
           }
         }
       }
-      return _writeChar != null;
+
+      _notifyChar ??= notifyFallback;
+      _writeChar ??= writeFallback;
+
+      if (_notifyChar != null) {
+        try {
+          await _notifyChar!.setNotifyValue(true);
+        } catch (_) {}
+        _notifySub = _notifyChar!.lastValueStream.listen(_onNotifyData);
+      }
+
+      return _writeChar != null && _notifyChar != null;
     } catch (e) {
       return false;
     }
   }
 
   Future<void> disconnect() async {
+    await _notifySub?.cancel();
+    _notifySub = null;
     try {
       await _device?.disconnect();
     } catch (_) {}
     _device = null;
     _writeChar = null;
     _notifyChar = null;
+    _rxBuffer = '';
   }
 
   Future<bool> sendJson(Map<String, dynamic> msg) async {
@@ -183,6 +295,7 @@ class BluetoothService {
   }
 
   void dispose() {
+    _notifySub?.cancel();
     _incoming.close();
   }
 }

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
+import 'package:compost_companion/core/config/api_config.dart';
 import 'package:compost_companion/data/models/compost_pile.dart';
 import 'package:compost_companion/data/models/dashboard_pile.dart';
 import 'package:compost_companion/data/models/ingredient.dart';
@@ -11,7 +12,7 @@ class CompostService {
   final String baseUrl;
   final AuthService _auth;
 
-  CompostService({this.baseUrl = 'http://127.0.0.1:8000', AuthService? auth})
+  CompostService({this.baseUrl = ApiConfig.baseUrl, AuthService? auth})
       : _auth = auth ?? AuthService();
 
   Future<List<CompostPile>> fetchMyPiles() async {
@@ -234,6 +235,28 @@ class CompostService {
       return jsonDecode(resp.body);
     } else {
       throw Exception('Failed to evaluate recipe: ${resp.body}');
+    }
+  }
+
+  Future<List<dynamic>> fetchActiveTasksForPile(int pileId) async {
+    final token = _auth.currentToken?.accessToken;
+    if (token == null) {
+      throw Exception('No authentication token available');
+    }
+
+    final uri = Uri.parse('$baseUrl/compost-piles/$pileId/tasks/active');
+    final resp = await http.get(
+      uri,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    ).timeout(const Duration(seconds: 10));
+
+    if (resp.statusCode == 200) {
+      return jsonDecode(resp.body) as List<dynamic>;
+    } else {
+      throw Exception('Failed to load active tasks: ${resp.statusCode}');
     }
   }
 }

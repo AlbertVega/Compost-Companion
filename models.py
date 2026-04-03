@@ -3,7 +3,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from database import Base
 
-# 1. User (Table name is quoted in SQL, so we use "User" here)
+# 1. User 
 class User(Base):
     __tablename__ = "User"
     username = Column(String(50), primary_key=True)
@@ -12,6 +12,8 @@ class User(Base):
     country = Column(String(100))
     location = Column(String(255))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    piles = relationship("CompostPile", back_populates="owner")
 
 # 2. CompostPile
 class CompostPile(Base):
@@ -19,9 +21,14 @@ class CompostPile(Base):
     pile_id = Column(Integer, primary_key=True, autoincrement=True)
     username = Column(String(50), ForeignKey("User.username", ondelete="CASCADE"), nullable=False)
     name = Column(String(100), nullable=False)
+    device_id = Column(String(100), unique=True, index=True) #associate to IoT device
     volume_at_creation = Column(Numeric(6, 2))
     location = Column(String(255))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+   
+    owner = relationship("User", back_populates="piles")
+    health_records = relationship("HealthRecord", back_populates="pile")
+        
 
 # 3. HealthRecord
 class HealthRecord(Base):
@@ -35,7 +42,9 @@ class HealthRecord(Base):
     timestamp = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     health_score = Column(SmallInteger)
     status = Column(String(30))
-
+   
+    pile = relationship("CompostPile", back_populates="health_records") #
+   
     __table_args__ = (CheckConstraint('health_score BETWEEN 0 AND 100'),)
 
 # 4. CompostRecipe
@@ -66,3 +75,15 @@ class Notification(Base):
     priority = Column(SmallInteger, default=5)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     read_on = Column(DateTime(timezone=True))
+
+# 7. Task
+class Task(Base):
+    __tablename__ = "task"
+    task_id = Column(Integer, primary_key=True, autoincrement=True)
+    pile_id = Column(Integer, ForeignKey("compostpile.pile_id", ondelete="CASCADE"), nullable=False)
+    title = Column(String(120), nullable=False)
+    action_type = Column(String(50)) # e.g., 'ADD_BROWNS', 'TURN_PILE'
+    date_scheduled = Column(Date, nullable=False)
+    time_scheduled = Column(Time)
+    status = Column(String(30), default="Active")
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

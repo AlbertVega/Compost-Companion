@@ -17,9 +17,10 @@ static String join_url(const String& base, const String& path) {
 
 static bool post_record(const char* device_id,
                         const Measurement& m,
-                        AlertType alert,
-                        float nitrogen_content,
-                        float carbon_content) {
+                        AlertType alert
+                      //  float nitrogen_content,
+                      // float carbon_content
+                      ) {
   HTTPClient http;
 
   String path = "/test/compost-piles/" + String(g_pile_id) + "/health-records";
@@ -38,8 +39,8 @@ static bool post_record(const char* device_id,
   JsonDocument doc;
   doc["temperature"] = m.temp_c;
   doc["moisture"] = m.rh;
-  doc["nitrogen_content"] = nitrogen_content;
-  doc["carbon_content"] = carbon_content;
+ // doc["nitrogen_content"] = nitrogen_content;
+ // doc["carbon_content"] = carbon_content;
 
 
   doc["device_id"] = device_id;
@@ -91,7 +92,7 @@ bool comms_post_single(const char* device_id,
                        const Measurement& m,
                        AlertType alert) {
   Serial.println("[COMMS] SINGLE send");
-  return post_record(device_id, m, alert, 1.2f, 24.8f);
+  return post_record(device_id, m, alert);
 }
 
 bool comms_post_batch(const char* device_id,
@@ -102,7 +103,7 @@ bool comms_post_batch(const char* device_id,
   bool ok_all = true;
 
   for (uint16_t i = 0; i < n; i++) {
-    bool ok = post_record(device_id, batch[i], ALERT_NONE, 1.2f, 24.8f);
+    bool ok = post_record(device_id, batch[i], ALERT_NONE);
     if (!ok) ok_all = false;
   }
 

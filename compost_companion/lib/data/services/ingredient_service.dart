@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
+import 'package:compost_companion/core/config/api_config.dart';
 import 'package:compost_companion/data/models/ingredient.dart';
 import 'package:compost_companion/data/services/auth_service.dart';
 
@@ -9,7 +10,7 @@ class IngredientService {
   final String baseUrl;
   final AuthService _auth;
 
-  IngredientService({this.baseUrl = 'http://127.0.0.1:8000', AuthService? auth})
+  IngredientService({this.baseUrl = ApiConfig.baseUrl, AuthService? auth})
       : _auth = auth ?? AuthService();
 
   Future<Ingredient> createIngredient({

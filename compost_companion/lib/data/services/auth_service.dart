@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
-
 import 'package:http/http.dart' as http;
+import 'package:compost_companion/core/config/api_config.dart';
 import 'package:compost_companion/data/models/user_create.dart';
 import 'package:compost_companion/data/models/token_response.dart';
 
@@ -18,16 +18,26 @@ class AuthService {
 
   TokenResponse? _token;
 
-  factory AuthService({String baseUrl = 'http://127.0.0.1:8000'}) {
-    _instance.baseUrl = baseUrl;
+  factory AuthService({String? baseUrl}) {
+    if (baseUrl != null) {
+      _instance.baseUrl = baseUrl;
+    }
     return _instance;
   }
 
   AuthService._internal() {
-    baseUrl = 'http://127.0.0.1:8000';
+    _initBaseUrl();
+  }
+
+  void _initBaseUrl() {
+    baseUrl = ApiConfig.baseUrl;
   }
 
   TokenResponse? get currentToken => _token;
+
+  void logout() {
+    _token = null;
+  }
 
   Future<void> registerUser(UserCreate user) async {
     final uri = Uri.parse('$baseUrl/users/register');
