@@ -41,6 +41,7 @@ class MainNavigation extends StatefulWidget {
 class _MainNavigationState extends State<MainNavigation> {
   int _selectedIndex = 0;
   int _dashboardVersion = 0;
+  final Map<String, SoilPin> _globalPins = <String, SoilPin>{};
 
   void _onItemTapped(int index) {
     setState(() {
@@ -55,13 +56,29 @@ class _MainNavigationState extends State<MainNavigation> {
     });
   }
 
+  void _onAddPin(SoilPin pin) {
+    setState(() {
+      _globalPins[pin.id] = pin;
+    });
+  }
+
+  void _onRemovePin(String id) {
+    setState(() {
+      _globalPins.remove(id);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final List<Widget> screens = [
       DashboardScreen(key: ValueKey(_dashboardVersion)),
       CreateScreen(onSave: (name) {}, onFlowCompleted: _onCreateFlowCompleted),
       const CalendarScreen(),
-      const MapScreen(),
+      MapScreen(
+        globalPins: _globalPins,
+        onAddPin: _onAddPin,
+        onRemovePin: _onRemovePin,
+      ),
     ];
 
     return Scaffold(

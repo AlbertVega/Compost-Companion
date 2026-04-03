@@ -6,7 +6,7 @@ A new Flutter project.
 
 The Map screen uses a Google Maps API key.
 
-### Local key via `.env` (recommended)
+### Local key via `.env` (optional)
 
 1) Create a local `.env` file (ignored by git):
 
@@ -16,7 +16,11 @@ The Map screen uses a Google Maps API key.
 
 `flutter run -d web-server --dart-define-from-file=.env --web-port=7357`
 
-Or use the helper script:
+If you are not using `.env`, this also works:
+
+`flutter run -d web-server --web-port=7357`
+
+Or use the helper script (it uses `.env` only when present):
 
 `./tool/run_web.sh`
 
